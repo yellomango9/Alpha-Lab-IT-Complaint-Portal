@@ -171,3 +171,94 @@ class FileAttachment(models.Model):
             if os.path.isfile(self.file.path):
                 os.remove(self.file.path)
         super().delete(*args, **kwargs)
+
+
+class StatusHistory(models.Model):
+    """
+    Model to track detailed history of complaint status changes.
+    Provides audit trail for all status transitions with timestamps and user info.
+    """
+    complaint = models.ForeignKey(
+        Complaint, 
+        on_delete=models.CASCADE, 
+        related_name='status_history',
+        help_text="The complaint this status change belongs to"
+    )
+    previous_status = models.ForeignKey(
+        Status, 
+        on_delete=models.PROTECT, 
+        related_name='previous_status_changes',
+        null=True, 
+        blank=True,
+        help_text="Previous status before this change"
+    )
+    new_status = models.ForeignKey(
+        Status, 
+        on_delete=models.PROTECT, 
+        related_name='new_status_changes',
+        help_text="New status after this change"
+    )
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE,
+        help_text="User who made this status change"
+    )
+    notes = models.TextField(
+        blank=True, 
+        help_text="Optional notes about why the status was changed"
+    )
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-changed_at']
+        verbose_name = 'Status History'
+        verbose_name_plural = 'Status Histories'
+
+    def __str__(self):
+        return f"Complaint #{self.complaint.id}: {self.previous_status} → {self.new_status}"
+
+
+class ComplaintMetrics(models.Model):
+    """
+    Model to store pre-calculated metrics for reporting performance.
+    Updated via signals when complaints are created/updated.
+    """
+    date = models.DateField(unique=True, help_text="Date for these metrics")
+    
+    # Daily counts
+    total_complaints = models.PositiveIntegerField(default=0)
+    new_complaints = models.PositiveIntegerField(default=0)
+    resolved_complaints = models.PositiveIntegerField(default=0)
+    closed_complaints = models.PositiveIntegerField(default=0)
+    
+    # Resolution metrics
+    avg_resolution_time_hours = models.FloatField(
+        null=True, 
+        blank=True,
+        help_text="Average time to resolve complaints in hours"
+    )
+    
+    # Department breakdown (JSON field for flexibility)
+    department_stats = models.JSONField(
+        default=dict,
+        help_text="Breakdown of complaints by department"
+    )
+    type_stats = models.JSONField(
+        default=dict,
+        help_text="Breakdown of complaints by type"
+    )
+    urgency_stats = models.JSONField(
+        default=dict,
+        help_text="Breakdown of complaints by urgency"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date']
+        verbose_name = 'Complaint Metrics'
+        verbose_name_plural = 'Complaint Metrics'
+
+    def __str__(self):
+        return f"Metrics for {self.date}: {self.total_complaints} complaints"

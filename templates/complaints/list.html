@@ -1,0 +1,581 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Complaints - Alpha Lab IT Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .complaint-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        border: none;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .complaint-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    
+    .filter-panel {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid #dee2e6;
+    }
+    
+    .stats-bar {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .view-toggle {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 0.25rem;
+        border: 1px solid #dee2e6;
+    }
+    
+    .table-view {
+        display: none;
+    }
+    
+    .urgency-indicator {
+        width: 4px;
+        height: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+        border-radius: 0.375rem 0 0 0.375rem;
+    }
+    
+    .urgency-low { background-color: #28a745; }
+    .urgency-medium { background-color: #ffc107; }
+    .urgency-high { background-color: #fd7e14; }
+    .urgency-critical { background-color: #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-6 text-primary mb-2">
+                <i class="fas fa-list me-3"></i>
+                {% if user.is_staff or user.profile.is_admin %}All Complaints{% else %}My Complaints{% endif %}
+            </h1>
+            <p class="text-muted mb-0">Manage and track complaint status</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'complaints:submit' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Submit New Complaint
+            </a>
+            {% if user.is_staff or user.profile.is_admin %}
+            <button type="button" class="btn btn-outline-secondary" onclick="AlphaLabPortal.exportTableAsCSV('complaintsTable', 'complaints_export.csv')">
+                <i class="fas fa-download me-2"></i>Export CSV
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <div class="d-flex align-items-center justify-content-center">
+                    <i class="fas fa-clipboard-list fa-2x text-primary me-3"></i>
+                    <div>
+                        <h4 class="mb-0 text-primary">{{ complaints|length }}</h4>
+                        <small class="text-muted">Total Shown</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="d-flex align-items-center justify-content-center">
+                    <i class="fas fa-exclamation-circle fa-2x text-warning me-3"></i>
+                    <div>
+                        <h4 class="mb-0 text-warning">{{ open_count|default:0 }}</h4>
+                        <small class="text-muted">Open</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="d-flex align-items-center justify-content-center">
+                    <i class="fas fa-cog fa-2x text-info me-3"></i>
+                    <div>
+                        <h4 class="mb-0 text-info">{{ in_progress_count|default:0 }}</h4>
+                        <small class="text-muted">In Progress</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="d-flex align-items-center justify-content-center">
+                    <i class="fas fa-check-circle fa-2x text-success me-3"></i>
+                    <div>
+                        <h4 class="mb-0 text-success">{{ resolved_count|default:0 }}</h4>
+                        <small class="text-muted">Resolved</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Filters Panel -->
+    <div class="filter-panel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">
+                <i class="fas fa-filter me-2"></i>
+                Filters & Search
+            </h5>
+            <div class="view-toggle btn-group" role="group">
+                <input type="radio" class="btn-check" name="viewType" id="cardView" checked>
+                <label class="btn btn-outline-primary btn-sm" for="cardView">
+                    <i class="fas fa-th-large"></i>
+                </label>
+                <input type="radio" class="btn-check" name="viewType" id="tableView">
+                <label class="btn btn-outline-primary btn-sm" for="tableView">
+                    <i class="fas fa-list"></i>
+                </label>
+            </div>
+        </div>
+        
+        <form method="get" class="filter-form">
+            <div class="row g-3">
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        {% for status in statuses %}
+                            <option value="{{ status.id }}" {% if current_filters.status == status.id|stringformat:"s" %}selected{% endif %}>
+                                {{ status.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label">Type</label>
+                    <select name="type" class="form-select">
+                        <option value="">All Types</option>
+                        {% for type in complaint_types %}
+                            <option value="{{ type.id }}" {% if current_filters.type == type.id|stringformat:"s" %}selected{% endif %}>
+                                {{ type.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label">Urgency</label>
+                    <select name="urgency" class="form-select">
+                        <option value="">All Urgencies</option>
+                        {% for value, label in urgency_choices %}
+                            <option value="{{ value }}" {% if current_filters.urgency == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                {% if user.is_staff or user.profile.is_admin %}
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label">Assigned To</label>
+                    <select name="assigned_to" class="form-select">
+                        <option value="">All Engineers</option>
+                        {% for engineer in engineers %}
+                            <option value="{{ engineer.id }}" {% if current_filters.assigned_to == engineer.id|stringformat:"s" %}selected{% endif %}>
+                                {{ engineer.get_full_name|default:engineer.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label">Search</label>
+                    <div class="search-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" name="search" class="form-control search-input" 
+                               placeholder="Search title, description..." 
+                               value="{{ current_filters.search }}">
+                    </div>
+                </div>
+                
+                <div class="col-lg-1 col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-outline-secondary w-100 clear-filters" title="Clear all filters">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Quick Filter Buttons -->
+            <div class="mt-3">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-warning quick-filter" data-filter="status" data-value="1">
+                        <i class="fas fa-exclamation-circle me-1"></i>Open
+                    </button>
+                    <button type="button" class="btn btn-outline-info quick-filter" data-filter="status" data-value="2">
+                        <i class="fas fa-cog me-1"></i>In Progress
+                    </button>
+                    <button type="button" class="btn btn-outline-success quick-filter" data-filter="status" data-value="3">
+                        <i class="fas fa-check-circle me-1"></i>Resolved
+                    </button>
+                    <button type="button" class="btn btn-outline-danger quick-filter" data-filter="urgency" data-value="critical">
+                        <i class="fas fa-fire me-1"></i>Critical
+                    </button>
+                    <button type="button" class="btn btn-outline-primary quick-filter" data-filter="assigned_to" data-value="{{ user.id }}">
+                        <i class="fas fa-user me-1"></i>My Assignments
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {% if complaints %}
+    <!-- Card View (Default) -->
+    <div id="cardView" class="card-view">
+        <div class="row">
+            {% for complaint in complaints %}
+            <div class="col-xl-4 col-lg-6 mb-4">
+                <div class="card complaint-card h-100 position-relative">
+                    <div class="urgency-indicator urgency-{{ complaint.urgency }}"></div>
+                    
+                    <div class="card-header d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">
+                                <a href="{% url 'complaints:detail' complaint.pk %}" class="text-decoration-none">
+                                    #{{ complaint.id }} - {{ complaint.title|truncatechars:35 }}
+                                </a>
+                            </h6>
+                            <small class="text-muted">
+                                <i class="fas fa-user me-1"></i>
+                                {{ complaint.user.get_full_name|default:complaint.user.username }}
+                            </small>
+                        </div>
+                        <span class="badge status-{{ complaint.status.name|lower|cut:' ' }} ms-2">
+                            {{ complaint.status.name }}
+                        </span>
+                    </div>
+                    
+                    <div class="card-body">
+                        <p class="card-text text-muted mb-3">{{ complaint.description|truncatechars:120 }}</p>
+                        
+                        <div class="row g-2 text-sm">
+                            <div class="col-6">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-tag text-primary me-2"></i>
+                                    <span class="text-truncate">{{ complaint.type.name }}</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-exclamation-triangle text-{{ complaint.urgency }} me-2"></i>
+                                    <span class="badge urgency-{{ complaint.urgency }}">
+                                        {{ complaint.get_urgency_display }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% if complaint.location %}
+                            <div class="col-12 mt-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-map-marker-alt text-secondary me-2"></i>
+                                    <span class="text-muted text-truncate">{{ complaint.location }}</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            {{ complaint.created_at|timesince }} ago
+                        </small>
+                        {% if complaint.assigned_to %}
+                        <small class="text-muted">
+                            <i class="fas fa-user-cog me-1"></i>
+                            {{ complaint.assigned_to.get_full_name|default:complaint.assigned_to.username|truncatechars:15 }}
+                        </small>
+                        {% else %}
+                        <small class="text-warning">
+                            <i class="fas fa-user-slash me-1"></i>
+                            Unassigned
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Table View -->
+    <div id="tableView" class="table-view">
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="complaintsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>User</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Urgency</th>
+                                <th>Assigned To</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for complaint in complaints %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'complaints:detail' complaint.pk %}" class="text-decoration-none fw-bold">
+                                        #{{ complaint.id }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <div class="text-truncate" style="max-width: 200px;" title="{{ complaint.title }}">
+                                        {{ complaint.title }}
+                                    </div>
+                                    <small class="text-muted">{{ complaint.description|truncatechars:50 }}</small>
+                                </td>
+                                <td>{{ complaint.user.get_full_name|default:complaint.user.username }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ complaint.type.name }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge status-{{ complaint.status.name|lower|cut:' ' }}">
+                                        {{ complaint.status.name }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge urgency-{{ complaint.urgency }}">
+                                        {{ complaint.get_urgency_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if complaint.assigned_to %}
+                                        {{ complaint.assigned_to.get_full_name|default:complaint.assigned_to.username }}
+                                    {% else %}
+                                        <span class="text-muted">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>{{ complaint.created_at|date:"M d, Y" }}</div>
+                                    <small class="text-muted">{{ complaint.created_at|time:"H:i" }}</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'complaints:detail' complaint.pk %}" class="btn btn-outline-primary btn-sm" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if user.is_staff or user.profile.is_admin or complaint.user == user %}
+                                        <a href="{% url 'complaints:edit' complaint.pk %}" class="btn btn-outline-secondary btn-sm" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Complaints pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
+                    <i class="fas fa-angle-left"></i>
+                </a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+            </li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+        
+        <div class="text-center mt-2">
+            <small class="text-muted">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} complaints
+            </small>
+        </div>
+    </nav>
+    {% endif %}
+
+{% else %}
+    <!-- Empty State -->
+    <div class="text-center py-5">
+        <div class="mb-4">
+            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+            <h3 class="text-muted">No Complaints Found</h3>
+            <p class="text-muted lead">
+                {% if current_filters.search or current_filters.status or current_filters.type or current_filters.urgency %}
+                    No complaints match your current filters. Try adjusting your search criteria.
+                {% else %}
+                    You haven't submitted any complaints yet.
+                {% endif %}
+            </p>
+        </div>
+        
+        <div class="d-flex justify-content-center gap-2">
+            {% if current_filters.search or current_filters.status or current_filters.type or current_filters.urgency %}
+            <button type="button" class="btn btn-outline-secondary clear-all-filters">
+                <i class="fas fa-times me-2"></i>Clear All Filters
+            </button>
+            {% endif %}
+            
+            <a href="{% url 'complaints:submit' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Submit New Complaint
+            </a>
+        </div>
+    </div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // View toggle functionality
+    const cardViewRadio = document.getElementById('cardView');
+    const tableViewRadio = document.getElementById('tableView');
+    const cardViewDiv = document.querySelector('.card-view');
+    const tableViewDiv = document.querySelector('.table-view');
+    
+    function toggleView() {
+        if (tableViewRadio.checked) {
+            cardViewDiv.style.display = 'none';
+            tableViewDiv.style.display = 'block';
+        } else {
+            cardViewDiv.style.display = 'block';
+            tableViewDiv.style.display = 'none';
+        }
+    }
+    
+    cardViewRadio.addEventListener('change', toggleView);
+    tableViewRadio.addEventListener('change', toggleView);
+    
+    // Quick filter functionality
+    const quickFilterButtons = document.querySelectorAll('.quick-filter');
+    quickFilterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            const value = this.dataset.value;
+            const select = document.querySelector(`select[name="${filter}"]`);
+            
+            if (select) {
+                select.value = value;
+                document.querySelector('.filter-form').submit();
+            }
+        });
+    });
+    
+    // Clear filters functionality
+    document.querySelector('.clear-filters').addEventListener('click', function() {
+        const form = document.querySelector('.filter-form');
+        const inputs = form.querySelectorAll('select, input[type="text"]');
+        
+        inputs.forEach(input => {
+            if (input.tagName === 'SELECT') {
+                input.selectedIndex = 0;
+            } else {
+                input.value = '';
+            }
+        });
+        
+        form.submit();
+    });
+    
+    // Clear all filters (from empty state)
+    const clearAllBtn = document.querySelector('.clear-all-filters');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', function() {
+            window.location.href = window.location.pathname;
+        });
+    }
+    
+    // Auto-submit on filter change with debounce
+    const filterInputs = document.querySelectorAll('.filter-form select');
+    filterInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            setTimeout(() => {
+                document.querySelector('.filter-form').submit();
+            }, 100);
+        });
+    });
+    
+    // Search input debounce
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                if (this.value.length >= 2 || this.value.length === 0) {
+                    document.querySelector('.filter-form').submit();
+                }
+            }, 500);
+        });
+    }
+    
+    // Add hover effects to complaint cards
+    const complaintCards = document.querySelectorAll('.complaint-card');
+    complaintCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.borderColor = '#667eea';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.borderColor = '';
+        });
+    });
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

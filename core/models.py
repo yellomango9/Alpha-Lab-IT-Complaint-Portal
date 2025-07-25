@@ -60,7 +60,7 @@ class UserProfile(models.Model):
     
     # Contact Information
     phone_number = models.CharField(max_length=20, blank=True)
-    employee_id = models.CharField(max_length=50, blank=True, unique=True)
+    employee_id = models.CharField(max_length=50, blank=True, null=True, unique=True)
     
     # Profile Details
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)

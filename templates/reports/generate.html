@@ -1,0 +1,430 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Generate Report - Alpha Lab IT Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-form-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .form-section {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .section-title {
+        color: #667eea;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .preview-container {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-top: 2rem;
+        display: none;
+    }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 0.75rem;
+        z-index: 10;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="report-form-container">
+        <!-- Page Header -->
+        <div class="text-center mb-4">
+            <h1 class="display-6 text-primary">
+                <i class="fas fa-file-export me-3"></i>
+                Generate Report
+            </h1>
+            <p class="lead text-muted">Create comprehensive reports for complaint analysis</p>
+        </div>
+
+        <form id="reportForm" method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+            
+            <!-- Report Type Section -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Report Type
+                </h3>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="report_type" class="form-label">Report Type *</label>
+                        <select class="form-select" id="report_type" name="report_type" required>
+                            <option value="">Select report type...</option>
+                            {% for value, label in report_types %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">
+                            Please select a report type.
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="export_format" class="form-label">Export Format *</label>
+                        <select class="form-select" id="export_format" name="export_format" required>
+                            <option value="json">JSON (Web View)</option>
+                            <option value="csv">CSV (Excel Compatible)</option>
+                            <option value="pdf">PDF (Coming Soon)</option>
+                        </select>
+                        <div class="invalid-feedback">
+                            Please select an export format.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Report Type Description -->
+                <div class="mt-3">
+                    <div id="reportTypeDescription" class="alert alert-info" style="display: none;">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="descriptionText"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Date Range Section -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    Date Range
+                </h3>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="date_from" class="form-label">From Date *</label>
+                        <input type="date" class="form-control" id="date_from" name="date_from" required>
+                        <div class="invalid-feedback">
+                            Please select a start date.
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="date_to" class="form-label">To Date *</label>
+                        <input type="date" class="form-control" id="date_to" name="date_to" required>
+                        <div class="invalid-feedback">
+                            Please select an end date.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Date Range Buttons -->
+                <div class="mt-3">
+                    <label class="form-label">Quick Select:</label>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-range="7">Last 7 Days</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-range="30">Last 30 Days</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-range="90">Last 3 Months</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-range="365">Last Year</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-filter me-2"></i>
+                    Filters (Optional)
+                </h3>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="department" class="form-label">Department</label>
+                        <select class="form-select" id="department" name="department">
+                            <option value="">All Departments</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="complaint_type" class="form-label">Complaint Type</label>
+                        <select class="form-select" id="complaint_type" name="complaint_type">
+                            <option value="">All Types</option>
+                            {% for type in complaint_types %}
+                            <option value="{{ type.id }}">{{ type.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">All Statuses</option>
+                            {% for status in statuses %}
+                            <option value="{{ status.id }}">{{ status.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="urgency" class="form-label">Urgency</label>
+                        <select class="form-select" id="urgency" name="urgency">
+                            <option value="">All Urgency Levels</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="form-section">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <button type="button" id="previewBtn" class="btn btn-outline-primary">
+                            <i class="fas fa-eye me-2"></i>
+                            Preview Report
+                        </button>
+                    </div>
+                    
+                    <div>
+                        <a href="{% url 'reports:list' %}" class="btn btn-secondary me-2">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Back to Reports
+                        </a>
+                        
+                        <button type="submit" id="generateBtn" class="btn btn-primary">
+                            <i class="fas fa-download me-2"></i>
+                            Generate & Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- Preview Container -->
+        <div id="previewContainer" class="preview-container">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">
+                    <i class="fas fa-eye me-2"></i>
+                    Report Preview
+                </h4>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="closePreview">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div id="previewContent">
+                <!-- Preview content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const reportForm = document.getElementById('reportForm');
+    const reportTypeSelect = document.getElementById('report_type');
+    const dateFromInput = document.getElementById('date_from');
+    const dateToInput = document.getElementById('date_to');
+    const previewBtn = document.getElementById('previewBtn');
+    const generateBtn = document.getElementById('generateBtn');
+    const previewContainer = document.getElementById('previewContainer');
+    const previewContent = document.getElementById('previewContent');
+    const closePreviewBtn = document.getElementById('closePreview');
+    
+    // Report type descriptions
+    const reportDescriptions = {
+        'daily': 'Generate a detailed daily report with day-by-day breakdown of complaints, resolutions, and trends.',
+        'weekly': 'Create a weekly summary report showing complaint patterns and resolution metrics over weeks.',
+        'monthly': 'Comprehensive monthly report with detailed analytics, performance metrics, and department comparisons.',
+        'custom': 'Custom report with all available data for the selected date range and filters.',
+        'department': 'Department-focused analysis showing complaint distribution and performance by department.',
+        'performance': 'Performance metrics report focusing on resolution times, engineer performance, and SLA compliance.'
+    };
+    
+    // Set default dates (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    dateToInput.value = today.toISOString().split('T')[0];
+    dateFromInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    // Report type change handler
+    reportTypeSelect.addEventListener('change', function() {
+        const selectedType = this.value;
+        const descriptionDiv = document.getElementById('reportTypeDescription');
+        const descriptionText = document.getElementById('descriptionText');
+        
+        if (selectedType && reportDescriptions[selectedType]) {
+            descriptionText.textContent = reportDescriptions[selectedType];
+            descriptionDiv.style.display = 'block';
+        } else {
+            descriptionDiv.style.display = 'none';
+        }
+    });
+    
+    // Quick date range buttons
+    const quickRangeButtons = document.querySelectorAll('[data-range]');
+    quickRangeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const days = parseInt(this.dataset.range);
+            const endDate = new Date();
+            const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000));
+            
+            dateFromInput.value = startDate.toISOString().split('T')[0];
+            dateToInput.value = endDate.toISOString().split('T')[0];
+            
+            // Update button states
+            quickRangeButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+    
+    // Date validation
+    dateFromInput.addEventListener('change', validateDates);
+    dateToInput.addEventListener('change', validateDates);
+    
+    function validateDates() {
+        const fromDate = new Date(dateFromInput.value);
+        const toDate = new Date(dateToInput.value);
+        
+        if (fromDate > toDate) {
+            dateToInput.setCustomValidity('End date must be after start date');
+        } else {
+            dateToInput.setCustomValidity('');
+        }
+    }
+    
+    // Preview functionality
+    previewBtn.addEventListener('click', function() {
+        if (!reportForm.checkValidity()) {
+            reportForm.classList.add('was-validated');
+            return;
+        }
+        
+        showLoadingInPreview();
+        
+        const formData = new FormData(reportForm);
+        formData.set('export_format', 'json'); // Force JSON for preview
+        
+        fetch('{% url "reports:generate" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            displayPreview(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showPreviewError('Failed to generate preview. Please try again.');
+        });
+    });
+    
+    // Close preview
+    closePreviewBtn.addEventListener('click', function() {
+        previewContainer.style.display = 'none';
+    });
+    
+    // Form submission
+    reportForm.addEventListener('submit', function(e) {
+        if (!this.checkValidity()) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.add('was-validated');
+            return;
+        }
+        
+        // Show loading state
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+        generateBtn.disabled = true;
+        
+        // Form will submit normally for file download
+    });
+    
+    function showLoadingInPreview() {
+        previewContainer.style.display = 'block';
+        previewContent.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3 text-muted">Generating preview...</p>
+            </div>
+        `;
+    }
+    
+    function displayPreview(data) {
+        if (data.error) {
+            showPreviewError(data.error);
+            return;
+        }
+        
+        let html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Report Summary</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Type:</strong> ${data.type}</li>
+                        <li><strong>Date Range:</strong> ${data.date_from} to ${data.date_to}</li>
+                        <li><strong>Total Complaints:</strong> ${data.summary?.total_complaints || 0}</li>
+                        <li><strong>Resolved:</strong> ${data.summary?.resolved_complaints || 0}</li>
+                        <li><strong>Resolution Rate:</strong> ${data.summary?.resolution_rate || 0}%</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Key Metrics</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Open Complaints:</strong> ${data.summary?.open_complaints || 0}</li>
+                        <li><strong>Avg Resolution Time:</strong> ${data.summary?.avg_resolution_time_hours || 0}h</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+        
+        if (data.charts) {
+            html += '<hr><h6>Available Charts</h6><ul>';
+            Object.keys(data.charts).forEach(chartType => {
+                html += `<li>${chartType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</li>`;
+            });
+            html += '</ul>';
+        }
+        
+        previewContent.innerHTML = html;
+    }
+    
+    function showPreviewError(message) {
+        previewContent.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        `;
+    }
+});
+</script>
+{% endblock %}

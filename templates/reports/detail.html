@@ -1,0 +1,330 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Report Details - Alpha Lab IT Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 0.75rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .summary-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #667eea;
+    }
+    
+    .chart-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 1.5rem;
+        min-height: 400px;
+    }
+    
+    .data-table {
+        background: white;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="fas fa-chart-bar me-3"></i>
+                    {{ report.template.get_report_type_display }} Report
+                </h1>
+                <p class="mb-0 opacity-75">
+                    Generated on {{ report.generated_at|date:"F d, Y \a\t H:i" }} by {{ report.generated_by.get_full_name|default:report.generated_by.username }}
+                </p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="btn-group">
+                    {% if report.pdf_file %}
+                    <a href="{{ report.pdf_file.url }}" class="btn btn-light" download>
+                        <i class="fas fa-file-pdf me-2"></i>
+                        Download PDF
+                    </a>
+                    {% endif %}
+                    
+                    {% if report.csv_file %}
+                    <a href="{{ report.csv_file.url }}" class="btn btn-light" download>
+                        <i class="fas fa-file-csv me-2"></i>
+                        Download CSV
+                    </a>
+                    {% endif %}
+                    
+                    <button type="button" class="btn btn-outline-light" onclick="AlphaLabPortal.printPage()">
+                        <i class="fas fa-print me-2"></i>
+                        Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Summary -->
+    <div class="summary-card">
+        <h3 class="mb-4">
+            <i class="fas fa-info-circle me-2 text-primary"></i>
+            Report Summary
+        </h3>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Report Details</h5>
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>Report Type:</strong></td>
+                        <td>{{ report.template.get_report_type_display }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Date Range:</strong></td>
+                        <td>{{ report.date_range_display }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Template:</strong></td>
+                        <td>{{ report.template.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Generated:</strong></td>
+                        <td>{{ report.generated_at|timesince }} ago</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="col-md-6">
+                <h5>Key Metrics</h5>
+                {% if report_summary %}
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h4 class="text-primary mb-1">{{ report_summary.total_complaints|default:0 }}</h4>
+                            <small class="text-muted">Total Complaints</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h4 class="text-success mb-1">{{ report_summary.resolved_complaints|default:0 }}</h4>
+                            <small class="text-muted">Resolved</small>
+                        </div>
+                    </div>
+                    <div class="col-6 mt-2">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h4 class="text-warning mb-1">{{ report_summary.open_complaints|default:0 }}</h4>
+                            <small class="text-muted">Open</small>
+                        </div>
+                    </div>
+                    <div class="col-6 mt-2">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h4 class="text-info mb-1">{{ report_summary.resolution_rate|default:0 }}%</h4>
+                            <small class="text-muted">Resolution Rate</small>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">No summary data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    {% if report_charts %}
+    <div class="row">
+        {% for chart_name, chart_data in report_charts.items %}
+        <div class="col-lg-6 mb-4">
+            <div class="chart-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-chart-{{ chart_name|slice:':5' == 'trend'|yesno:'line,pie' }} me-2"></i>
+                    {{ chart_name|title|cut:'_' }}
+                </h5>
+                <canvas id="chart_{{ forloop.counter }}" data-chart-data="{{ chart_data|safe }}"></canvas>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Raw Data Section -->
+    <div class="data-table">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2"></i>
+                Report Data
+                <button type="button" class="btn btn-sm btn-outline-primary float-end" 
+                        onclick="AlphaLabPortal.exportTableAsCSV('reportDataTable', 'report_data.csv')">
+                    <i class="fas fa-download me-1"></i>
+                    Export Table
+                </button>
+            </h5>
+        </div>
+        
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="reportDataTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if report_summary %}
+                        <tr>
+                            <td><strong>Total Complaints</strong></td>
+                            <td><span class="badge bg-primary">{{ report_summary.total_complaints|default:0 }}</span></td>
+                            <td>Total number of complaints in the selected period</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Resolved Complaints</strong></td>
+                            <td><span class="badge bg-success">{{ report_summary.resolved_complaints|default:0 }}</span></td>
+                            <td>Number of complaints that have been resolved</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Open Complaints</strong></td>
+                            <td><span class="badge bg-warning">{{ report_summary.open_complaints|default:0 }}</span></td>
+                            <td>Number of complaints still open or in progress</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Resolution Rate</strong></td>
+                            <td><span class="badge bg-info">{{ report_summary.resolution_rate|default:0 }}%</span></td>
+                            <td>Percentage of complaints that have been resolved</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Average Resolution Time</strong></td>
+                            <td><span class="badge bg-secondary">{{ report_summary.avg_resolution_time_hours|default:0 }}h</span></td>
+                            <td>Average time taken to resolve complaints</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">
+                                <i class="fas fa-info-circle fa-2x mb-2"></i>
+                                <br>
+                                No detailed data available for this report
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="text-center mt-4">
+        <a href="{% url 'reports:list' %}" class="btn btn-secondary me-2">
+            <i class="fas fa-arrow-left me-2"></i>
+            Back to Reports
+        </a>
+        
+        <a href="{% url 'reports:generate' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>
+            Generate New Report
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize charts if chart data is available
+    const chartCanvases = document.querySelectorAll('canvas[data-chart-data]');
+    
+    chartCanvases.forEach((canvas, index) => {
+        try {
+            const chartData = JSON.parse(canvas.dataset.chartData);
+            createReportChart(canvas, chartData);
+        } catch (error) {
+            console.error('Error parsing chart data:', error);
+            // Show error message in canvas container
+            const container = canvas.parentElement;
+            container.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>Unable to load chart data</p>
+                </div>
+            `;
+        }
+    });
+});
+
+function createReportChart(canvas, data) {
+    const ctx = canvas.getContext('2d');
+    
+    // Determine chart type based on data structure
+    let chartType = 'bar';
+    if (Array.isArray(data) && data.length > 0) {
+        if (data[0].hasOwnProperty('labels') && data[0].hasOwnProperty('data')) {
+            chartType = 'pie';
+        }
+    }
+    
+    let config = {
+        type: chartType,
+        data: {
+            labels: data.labels || Object.keys(data),
+            datasets: [{
+                data: data.data || Object.values(data),
+                backgroundColor: [
+                    '#667eea', '#764ba2', '#f093fb', '#f5576c',
+                    '#4facfe', '#00f2fe', '#43e97b', '#38f9d7',
+                    '#ffecd2', '#fcb69f', '#a8edea', '#fed6e3'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    };
+    
+    // Customize based on chart type
+    if (chartType === 'bar') {
+        config.options.scales = {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            },
+            x: {
+                grid: {
+                    display: false
+                }
+            }
+        };
+    }
+    
+    new Chart(ctx, config);
+}
+</script>
+{% endblock %}
