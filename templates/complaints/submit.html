@@ -1,109 +1,204 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Submit Complaint - Alpha Lab IT Portal{% endblock %}
+{% block title %}Submit IT Complaint - Alpha Lab IT Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .complaint-form {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    .form-header {
+        text-align: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #667eea;
+    }
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 2px solid #e1e5e9;
+        padding: 12px 15px;
+        transition: all 0.3s ease;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    .help-section {
+        background: #fff;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 2rem;
+        border-left: 4px solid #17a2b8;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h4><i class="fas fa-plus me-2"></i>Submit New Complaint</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST" enctype="multipart/form-data">
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="complaint-form">
+                <div class="form-header">
+                    <i class="fas fa-headset fa-3x text-primary mb-3"></i>
+                    <h2 class="text-primary mb-2">Submit IT Support Request</h2>
+                    <p class="text-muted mb-0">Tell us about your IT issue and we'll help you resolve it quickly</p>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" id="complaintForm">
                     {% csrf_token %}
                     
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="mb-3">
-                                <label for="{{ form.title.id_for_label }}" class="form-label">
-                                    <i class="fas fa-heading me-1"></i>Title *
-                                </label>
-                                {{ form.title }}
-                                {% if form.title.errors %}
-                                    <div class="text-danger">{{ form.title.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="{{ form.urgency.id_for_label }}" class="form-label">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>Urgency *
-                                </label>
-                                {{ form.urgency }}
-                                {% if form.urgency.errors %}
-                                    <div class="text-danger">{{ form.urgency.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="{{ form.type.id_for_label }}" class="form-label">
-                            <i class="fas fa-tags me-1"></i>Complaint Type *
+                    <!-- Issue Type -->
+                    <div class="mb-4">
+                        <label for="{{ form.type.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-cog me-2 text-primary"></i>{{ form.type.label }}
                         </label>
                         {{ form.type }}
                         {% if form.type.errors %}
-                            <div class="text-danger">{{ form.type.errors.0 }}</div>
+                            <div class="text-danger mt-1">{{ form.type.errors.0 }}</div>
                         {% endif %}
+                        <small class="form-text text-muted">{{ form.type.help_text }}</small>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="{{ form.description.id_for_label }}" class="form-label">
-                            <i class="fas fa-align-left me-1"></i>Description *
+                    <!-- Issue Summary -->
+                    <div class="mb-4">
+                        <label for="{{ form.title.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-edit me-2 text-primary"></i>{{ form.title.label }}
+                        </label>
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                            <div class="text-danger mt-1">{{ form.title.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.title.help_text }}</small>
+                    </div>
+
+                    <!-- Detailed Description -->
+                    <div class="mb-4">
+                        <label for="{{ form.description.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-align-left me-2 text-primary"></i>{{ form.description.label }}
                         </label>
                         {{ form.description }}
                         {% if form.description.errors %}
-                            <div class="text-danger">{{ form.description.errors.0 }}</div>
+                            <div class="text-danger mt-1">{{ form.description.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">Please provide detailed information about the issue.</div>
+                        <small class="form-text text-muted">{{ form.description.help_text }}</small>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.location.id_for_label }}" class="form-label">
-                                    <i class="fas fa-map-marker-alt me-1"></i>Location
-                                </label>
-                                {{ form.location }}
-                                {% if form.location.errors %}
-                                    <div class="text-danger">{{ form.location.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.contact_number.id_for_label }}" class="form-label">
-                                    <i class="fas fa-phone me-1"></i>Contact Number
-                                </label>
-                                {{ form.contact_number }}
-                                {% if form.contact_number.errors %}
-                                    <div class="text-danger">{{ form.contact_number.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">
-                            <i class="fas fa-paperclip me-1"></i>File Attachments
+                    <!-- Priority Level -->
+                    <div class="mb-4">
+                        <label for="{{ form.urgency.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-flag me-2 text-primary"></i>{{ form.urgency.label }}
                         </label>
-                        <input type="file" name="attachments" multiple class="form-control" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.txt">
-                        <div class="form-text">You can upload multiple files (images, documents, etc.)</div>
+                        {{ form.urgency }}
+                        {% if form.urgency.errors %}
+                            <div class="text-danger mt-1">{{ form.urgency.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.urgency.help_text }}</small>
                     </div>
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'complaints:list' %}" class="btn btn-secondary me-md-2">
-                            <i class="fas fa-times me-1"></i>Cancel
-                        </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-paper-plane me-1"></i>Submit Complaint
+                    <!-- File Attachments (Optional) -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-paperclip me-2 text-primary"></i>Attach Files (Optional)
+                        </label>
+                        {{ form.attachments }}
+                        {% if form.attachments.errors %}
+                            <div class="text-danger mt-1">{{ form.attachments.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.attachments.help_text }}</small>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-submit btn-lg px-5" id="submitBtn">
+                            <i class="fas fa-paper-plane me-2"></i>Submit Request
                         </button>
                     </div>
                 </form>
+
+                <!-- Help Section -->
+                <div class="help-section">
+                    <h5 class="text-info mb-3">
+                        <i class="fas fa-question-circle me-2"></i>Need Help?
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2">
+                                <i class="fas fa-clock me-2"></i>
+                                <strong>Response Time:</strong> Within 24 hours
+                            </p>
+                            <p class="mb-2">
+                                <i class="fas fa-users me-2"></i>
+                                <strong>Support Hours:</strong> Mon-Fri, 9 AM - 6 PM
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2">
+                                <i class="fas fa-phone me-2"></i>
+                                <strong>Emergency:</strong> Call ext. 911
+                            </p>
+                            <p class="mb-2">
+                                <i class="fas fa-envelope me-2"></i>
+                                <strong>Email:</strong> itsupport@alphalab.com
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'faq:list' %}" class="btn btn-outline-info btn-sm">
+                            <i class="fas fa-book me-1"></i>Browse FAQ
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('complaintForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const originalBtnText = submitBtn.innerHTML;
+    
+    form.addEventListener('submit', function() {
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+        
+        // Re-enable button after 10 seconds in case of slow response
+        setTimeout(function() {
+            if (submitBtn.disabled) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
+        }, 10000);
+    });
+    
+    // Auto-expand description textarea based on content
+    const descriptionField = document.querySelector('textarea[name="description"]');
+    if (descriptionField) {
+        descriptionField.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+    }
+});
+</script>
 {% endblock %}

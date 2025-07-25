@@ -238,26 +238,25 @@ class ComplaintCreateView(LoginRequiredMixin, CreateView):
 class ComplaintUpdateView(LoginRequiredMixin, UpdateView):
     """Update view for existing complaints."""
     model = Complaint
-    form_class = ComplaintUpdateForm
     template_name = 'complaints/edit.html'
+    
+    def get_form_class(self):
+        """Return appropriate form based on user role."""
+        user = self.request.user
+        if hasattr(user, 'profile') and (user.profile.is_engineer or user.profile.is_admin):
+            return ComplaintUpdateForm
+        else:
+            return ComplaintForm
     
     def get_queryset(self):
         queryset = Complaint.objects.select_related('user', 'type', 'status')
         
         # Users can only edit their own complaints unless they're engineers/admins
         user = self.request.user
-        if not (hasattr(user, 'profile') and user.profile.is_engineer):
+        if not (hasattr(user, 'profile') and (user.profile.is_engineer or user.profile.is_admin)):
             queryset = queryset.filter(user=user, status__is_closed=False)
         
         return queryset
-    
-    def get_form_class(self):
-        """Return appropriate form based on user role."""
-        user = self.request.user
-        if hasattr(user, 'profile') and user.profile.is_engineer:
-            return ComplaintUpdateForm  # Full form for engineers
-        else:
-            return ComplaintForm  # Limited form for regular users
     
     def form_valid(self, form):
         complaint = form.save(commit=False)

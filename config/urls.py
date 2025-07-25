@@ -19,11 +19,20 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
+from django.contrib.auth import views as auth_views
+from core.views import CustomLoginView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', RedirectView.as_view(url='/dashboard/', permanent=False)),
-    path('auth/', include(('django.contrib.auth.urls', 'auth'), namespace='auth')),
+    
+    # Custom authentication URLs
+    path('login/', CustomLoginView.as_view(), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='/login/'), name='logout'),
+    path('password_change/', auth_views.PasswordChangeView.as_view(), name='password_change'),
+    path('password_change/done/', auth_views.PasswordChangeDoneView.as_view(), name='password_change_done'),
+    
+    # App URLs
     path('dashboard/', include('reports.urls')),
     path('complaints/', include('complaints.urls')),
     path('core/', include('core.urls')),

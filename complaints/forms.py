@@ -25,7 +25,7 @@ class MultipleFileField(forms.FileField):
 
 
 class ComplaintForm(forms.ModelForm):
-    """Form for creating and editing complaints by regular users."""
+    """Simplified form for creating and editing complaints by regular users."""
     
     attachments = MultipleFileField(
         required=False,
@@ -38,21 +38,24 @@ class ComplaintForm(forms.ModelForm):
     
     class Meta:
         model = Complaint
-        fields = ['type', 'title', 'description', 'urgency', 'location', 'contact_number']
+        fields = ['type', 'title', 'description', 'urgency']
         widgets = {
             'type': forms.Select(attrs={'class': 'form-select'}),
-            'title': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Brief description of your IT issue'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 5,
+                'placeholder': 'Please provide detailed information about the problem you are experiencing...'
+            }),
             'urgency': forms.Select(attrs={'class': 'form-select'}),
-            'location': forms.TextInput(attrs={'class': 'form-control'}),
-            'contact_number': forms.TextInput(attrs={'class': 'form-control'}),
         }
         help_texts = {
             'title': 'Brief, descriptive title of your issue',
             'description': 'Provide detailed information about the problem',
             'urgency': 'How urgent is this issue?',
-            'location': 'Where is the issue occurring? (e.g., Room 101, Lab A)',
-            'contact_number': 'Alternative contact number (optional)',
         }
     
     def __init__(self, *args, **kwargs):
@@ -64,6 +67,12 @@ class ComplaintForm(forms.ModelForm):
         self.fields['type'].required = True
         self.fields['title'].required = True
         self.fields['description'].required = True
+        
+        # Set better labels for user-friendly experience
+        self.fields['type'].label = 'What type of IT issue is this?'
+        self.fields['title'].label = 'Issue Summary'
+        self.fields['description'].label = 'Detailed Description'
+        self.fields['urgency'].label = 'Priority Level'
     
     def clean_attachments(self):
         files = self.files.getlist('attachments')
@@ -86,8 +95,17 @@ class ComplaintForm(forms.ModelForm):
         return files
 
 
-class ComplaintUpdateForm(ComplaintForm):
+class ComplaintUpdateForm(forms.ModelForm):
     """Extended form for engineers/admins to update complaints."""
+    
+    attachments = MultipleFileField(
+        required=False,
+        widget=MultipleFileInput(attrs={
+            'class': 'form-control',
+            'accept': '.pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif'
+        }),
+        help_text="You can upload multiple files (PDF, DOC, images). Max 10MB per file."
+    )
     
     status = forms.ModelChoiceField(
         queryset=Status.objects.filter(is_active=True),
@@ -106,11 +124,30 @@ class ComplaintUpdateForm(ComplaintForm):
         help_text="Notes about the resolution or current progress"
     )
     
-    class Meta(ComplaintForm.Meta):
-        fields = ComplaintForm.Meta.fields + ['status', 'assigned_to', 'resolution_notes']
+    class Meta:
+        model = Complaint
+        fields = ['type', 'title', 'description', 'urgency', 'location', 'contact_number', 'status', 'assigned_to', 'resolution_notes']
+        widgets = {
+            'type': forms.Select(attrs={'class': 'form-select'}),
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'urgency': forms.Select(attrs={'class': 'form-select'}),
+            'location': forms.TextInput(attrs={'class': 'form-control'}),
+            'contact_number': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+        help_texts = {
+            'title': 'Brief, descriptive title of the issue',
+            'description': 'Detailed information about the problem',
+            'urgency': 'How urgent is this issue?',
+            'location': 'Where is the issue occurring? (e.g., Room 101, Lab A)',
+            'contact_number': 'Alternative contact number (optional)',
+        }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        # Filter active complaint types
+        self.fields['type'].queryset = ComplaintType.objects.filter(is_active=True)
         
         # Populate engineers for assignment
         engineer_profiles = UserProfile.objects.filter(
@@ -123,6 +160,26 @@ class ComplaintUpdateForm(ComplaintForm):
         
         # Order statuses by their order field
         self.fields['status'].queryset = Status.objects.filter(is_active=True).order_by('order')
+    
+    def clean_attachments(self):
+        files = self.files.getlist('attachments')
+        
+        if files:
+            for file in files:
+                # Check file size (10MB limit)
+                if file.size > 10 * 1024 * 1024:
+                    raise forms.ValidationError(f"File '{file.name}' is too large. Maximum size is 10MB.")
+                
+                # Check file type
+                allowed_types = [
+                    'application/pdf', 'application/msword', 
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'text/plain', 'image/jpeg', 'image/png', 'image/gif'
+                ]
+                if file.content_type not in allowed_types:
+                    raise forms.ValidationError(f"File type '{file.content_type}' is not allowed.")
+        
+        return files
 
 
 class FileAttachmentForm(forms.ModelForm):

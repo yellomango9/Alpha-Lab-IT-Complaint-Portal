@@ -34,18 +34,13 @@
                         <!-- Regular User Navigation -->
                         {% if not user.profile or not user.profile.is_admin and not user.profile.is_engineer %}
                             <li class="nav-item">
-                                <a class="nav-link {% if request.resolver_match.namespace == 'complaints' %}active{% endif %}" href="{% url 'complaints:list' %}">
-                                    <i class="fas fa-clipboard-list me-1"></i>My Complaints
-                                </a>
-                            </li>
-                            <li class="nav-item">
                                 <a class="nav-link" href="{% url 'complaints:submit' %}">
-                                    <i class="fas fa-plus me-1"></i>Submit Complaint
+                                    <i class="fas fa-plus me-1"></i>Add Complaint
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link {% if request.resolver_match.namespace == 'faq' %}active{% endif %}" href="{% url 'faq:list' %}">
-                                    <i class="fas fa-question-circle me-1"></i>FAQ
+                                <a class="nav-link {% if request.resolver_match.namespace == 'complaints' %}active{% endif %}" href="{% url 'complaints:list' %}">
+                                    <i class="fas fa-clipboard-list me-1"></i>View My Complaints
                                 </a>
                             </li>
                         
@@ -162,14 +157,14 @@
                                     <i class="fas fa-user-edit me-1"></i>Profile
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{% url 'auth:logout' %}">
+                                <li><a class="dropdown-item" href="{% url 'logout' %}">
                                     <i class="fas fa-sign-out-alt me-1"></i>Logout
                                 </a></li>
                             </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'auth:login' %}">
+                            <a class="nav-link" href="{% url 'login' %}">
                                 <i class="fas fa-sign-in-alt me-1"></i>Login
                             </a>
                         </li>
@@ -198,9 +193,22 @@
     </main>
 
     <!-- Footer -->
-    <footer class="footer mt-5">
+    <footer class="footer mt-5 bg-light py-4">
         <div class="container">
-            <p>&copy; {% now "Y" %} Alpha Lab IT Complaint Portal. All rights reserved.</p>
+            <div class="row">
+                <div class="col-md-8">
+                    <p class="mb-0">&copy; {% now "Y" %} Alpha Lab IT Complaint Portal. All rights reserved.</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    {% if user.is_authenticated %}
+                        {% if not user.profile or not user.profile.is_admin and not user.profile.is_engineer %}
+                            <a href="{% url 'faq:list' %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-question-circle me-1"></i>FAQ & Help
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </footer>
 
