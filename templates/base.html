@@ -8,7 +8,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.min.css" rel="stylesheet">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -31,38 +30,122 @@
                                 <i class="fas fa-tachometer-alt me-1"></i>Dashboard
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.namespace == 'complaints' %}active{% endif %}" href="{% url 'complaints:list' %}">
-                                <i class="fas fa-list me-1"></i>Complaints
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'complaints:submit' %}">
-                                <i class="fas fa-plus me-1"></i>Submit Complaint
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.namespace == 'faq' %}active{% endif %}" href="{% url 'faq:list' %}">
-                                <i class="fas fa-question-circle me-1"></i>FAQ
-                            </a>
-                        </li>
-                        {% if user.is_staff or user.profile.is_admin %}
+                        
+                        <!-- Regular User Navigation -->
+                        {% if not user.profile or not user.profile.is_admin and not user.profile.is_engineer %}
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.resolver_match.namespace == 'complaints' %}active{% endif %}" href="{% url 'complaints:list' %}">
+                                    <i class="fas fa-clipboard-list me-1"></i>My Complaints
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'complaints:submit' %}">
+                                    <i class="fas fa-plus me-1"></i>Submit Complaint
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.resolver_match.namespace == 'faq' %}active{% endif %}" href="{% url 'faq:list' %}">
+                                    <i class="fas fa-question-circle me-1"></i>FAQ
+                                </a>
+                            </li>
+                        
+                        <!-- Engineer Navigation -->
+                        {% elif user.profile.is_engineer %}
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.resolver_match.namespace == 'complaints' %}active{% endif %}" href="{% url 'complaints:list' %}">
+                                    <i class="fas fa-tools me-1"></i>All Complaints
+                                </a>
+                            </li>
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-cog me-1"></i>Admin
+                                <a class="nav-link dropdown-toggle" href="#" id="engineerDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-cog me-1"></i>Engineering
                                 </a>
                                 <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'complaints:list' %}?assigned_to={{ user.id }}">
+                                        <i class="fas fa-user-cog me-1"></i>My Assignments
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{% url 'complaints:list' %}?urgency=critical">
+                                        <i class="fas fa-fire me-1"></i>Critical Issues
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{% url 'complaints:list' %}?assigned_to=-1">
+                                        <i class="fas fa-user-slash me-1"></i>Unassigned
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{% url 'faq:list' %}">
+                                        <i class="fas fa-book me-1"></i>Knowledge Base
+                                    </a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'complaints:submit' %}">
+                                    <i class="fas fa-plus me-1"></i>Create Complaint
+                                </a>
+                            </li>
+                        
+                        <!-- Admin Navigation -->
+                        {% elif user.profile.is_admin %}
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.resolver_match.namespace == 'complaints' %}active{% endif %}" href="{% url 'complaints:list' %}">
+                                    <i class="fas fa-shield-alt me-1"></i>Manage Complaints
+                                </a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-cogs me-1"></i>Administration
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><h6 class="dropdown-header">Reports & Analytics</h6></li>
                                     <li><a class="dropdown-item" href="{% url 'reports:list' %}">
-                                        <i class="fas fa-chart-bar me-1"></i>Reports
+                                        <i class="fas fa-chart-bar me-1"></i>View Reports
                                     </a></li>
                                     <li><a class="dropdown-item" href="{% url 'reports:generate' %}">
                                         <i class="fas fa-file-export me-1"></i>Generate Report
                                     </a></li>
                                     <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">System Management</h6></li>
+                                    <li><a class="dropdown-item" href="/admin/auth/user/">
+                                        <i class="fas fa-users me-1"></i>Manage Users
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/admin/complaints/complainttype/">
+                                        <i class="fas fa-tags me-1"></i>Complaint Types
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/admin/complaints/status/">
+                                        <i class="fas fa-flag me-1"></i>Status Management
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="/admin/">
-                                        <i class="fas fa-tools me-1"></i>System Admin
+                                        <i class="fas fa-database me-1"></i>Database Admin
                                     </a></li>
                                 </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="quickActionsDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-bolt me-1"></i>Quick Actions
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'complaints:list' %}?urgency=critical">
+                                        <i class="fas fa-fire me-1 text-danger"></i>Critical Issues
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{% url 'complaints:list' %}?assigned_to=-1">
+                                        <i class="fas fa-user-slash me-1 text-warning"></i>Unassigned
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{% url 'complaints:list' %}?overdue=1">
+                                        <i class="fas fa-clock me-1 text-info"></i>Overdue
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{% url 'complaints:submit' %}">
+                                        <i class="fas fa-plus me-1"></i>Create Complaint
+                                    </a></li>
+                                </ul>
+                            </li>
+                        {% endif %}
+                        
+                        <!-- Common Items for Engineers and Admins -->
+                        {% if user.profile.is_engineer or user.profile.is_admin %}
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.resolver_match.namespace == 'faq' %}active{% endif %}" href="{% url 'faq:list' %}">
+                                    <i class="fas fa-question-circle me-1"></i>FAQ
+                                </a>
                             </li>
                         {% endif %}
                     {% endif %}

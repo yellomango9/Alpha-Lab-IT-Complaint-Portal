@@ -39,30 +39,66 @@ class AdminRequiredMixin(UserPassesTestMixin):
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     """
-    Main dashboard view showing key metrics and charts.
+    Main dashboard view showing key metrics and charts based on user role.
     Displays real-time complaint statistics and trends.
     """
-    template_name = 'reports/dashboard.html'
+    
+    def get_template_names(self):
+        """Return template based on user role."""
+        user = self.request.user
+        if hasattr(user, 'profile'):
+            if user.profile.is_admin:
+                return ['reports/admin_dashboard.html']
+            elif user.profile.is_engineer:
+                return ['reports/engineer_dashboard.html']
+        return ['reports/user_dashboard.html']
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user = self.request.user
         
         # Get date range (default to last 30 days)
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=30)
         
-        # Basic metrics
-        context.update({
-            'total_complaints': self.get_total_complaints(),
-            'open_complaints': self.get_open_complaints(),
-            'resolved_today': self.get_resolved_today(),
-            'avg_resolution_time': self.get_avg_resolution_time(),
-            'recent_complaints': self.get_recent_complaints(),
-            'status_distribution': self.get_status_distribution(),
-            'department_stats': self.get_department_stats(),
-            'monthly_trends': self.get_monthly_trends(),
-            'urgency_breakdown': self.get_urgency_breakdown(),
-        })
+        # Role-based metrics
+        if hasattr(user, 'profile'):
+            if user.profile.is_admin:
+                # Admin sees everything
+                context.update({
+                    'total_complaints': self.get_total_complaints(),
+                    'open_complaints': self.get_open_complaints(),
+                    'resolved_today': self.get_resolved_today(),
+                    'avg_resolution_time': self.get_avg_resolution_time(),
+                    'recent_complaints': self.get_recent_complaints(),
+                    'status_distribution': self.get_status_distribution(),
+                    'department_stats': self.get_department_stats(),
+                    'monthly_trends': self.get_monthly_trends(),
+                    'urgency_breakdown': self.get_urgency_breakdown(),
+                    'engineer_performance': self.get_engineer_performance(),
+                    'system_health': self.get_system_health(),
+                })
+            elif user.profile.is_engineer:
+                # Engineer sees all complaints but with focus on assignments
+                context.update({
+                    'total_complaints': self.get_total_complaints(),
+                    'my_assignments': self.get_my_assignments(user),
+                    'open_complaints': self.get_open_complaints(),
+                    'resolved_today': self.get_resolved_today(),
+                    'avg_resolution_time': self.get_avg_resolution_time(),
+                    'recent_complaints': self.get_recent_complaints(),
+                    'status_distribution': self.get_status_distribution(),
+                    'urgency_breakdown': self.get_urgency_breakdown(),
+                    'my_performance': self.get_my_performance(user),
+                })
+        else:
+            # Regular user sees only their data
+            context.update({
+                'my_complaints': self.get_my_complaints(user),
+                'my_open_complaints': self.get_my_open_complaints(user),
+                'my_resolved_complaints': self.get_my_resolved_complaints(user),
+                'recent_complaints': self.get_my_recent_complaints(user),
+            })
         
         return context
     
@@ -182,6 +218,105 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'count': count
             })
         return urgency_stats
+    
+    def get_my_assignments(self, user):
+        """Get complaints assigned to the current engineer."""
+        return Complaint.objects.filter(assigned_to=user).count()
+    
+    def get_my_performance(self, user):
+        """Get performance metrics for the current engineer."""
+        assigned_complaints = Complaint.objects.filter(assigned_to=user)
+        resolved_complaints = assigned_complaints.filter(status__is_closed=True)
+        
+        total_assigned = assigned_complaints.count()
+        total_resolved = resolved_complaints.count()
+        
+        if total_assigned > 0:
+            resolution_rate = (total_resolved / total_assigned) * 100
+        else:
+            resolution_rate = 0
+        
+        return {
+            'total_assigned': total_assigned,
+            'total_resolved': total_resolved,
+            'resolution_rate': round(resolution_rate, 1),
+            'avg_resolution_time': self.get_engineer_avg_resolution_time(user)
+        }
+    
+    def get_engineer_avg_resolution_time(self, user):
+        """Get average resolution time for a specific engineer."""
+        resolved_complaints = Complaint.objects.filter(
+            assigned_to=user,
+            status__is_closed=True,
+            resolved_at__isnull=False
+        )
+        
+        if not resolved_complaints.exists():
+            return 0
+        
+        total_hours = 0
+        count = 0
+        
+        for complaint in resolved_complaints:
+            if complaint.resolved_at and complaint.created_at:
+                hours = (complaint.resolved_at - complaint.created_at).total_seconds() / 3600
+                total_hours += hours
+                count += 1
+        
+        return round(total_hours / count, 1) if count > 0 else 0
+    
+    def get_engineer_performance(self):
+        """Get performance metrics for all engineers."""
+        engineers = UserProfile.objects.filter(role__name__icontains='engineer').select_related('user')
+        performance_data = []
+        
+        for engineer in engineers:
+            performance = self.get_my_performance(engineer.user)
+            performance['name'] = engineer.user.get_full_name() or engineer.user.username
+            performance_data.append(performance)
+        
+        return performance_data
+    
+    def get_system_health(self):
+        """Get system health indicators for admins."""
+        total = Complaint.objects.count()
+        overdue = Complaint.objects.filter(
+            status__is_closed=False,
+            created_at__lt=timezone.now() - timedelta(days=3)
+        ).count()
+        
+        unassigned = Complaint.objects.filter(assigned_to__isnull=True, status__is_closed=False).count()
+        critical = Complaint.objects.filter(urgency='critical', status__is_closed=False).count()
+        
+        health_score = 100
+        if total > 0:
+            health_score -= (overdue / total) * 30
+            health_score -= (unassigned / total) * 25
+            health_score -= (critical / total) * 45
+        
+        return {
+            'health_score': max(0, round(health_score)),
+            'overdue_count': overdue,
+            'unassigned_count': unassigned,
+            'critical_count': critical,
+            'status': 'Good' if health_score > 80 else 'Warning' if health_score > 60 else 'Critical'
+        }
+    
+    def get_my_complaints(self, user):
+        """Get total complaints for the current user."""
+        return Complaint.objects.filter(user=user).count()
+    
+    def get_my_open_complaints(self, user):
+        """Get open complaints for the current user."""
+        return Complaint.objects.filter(user=user, status__is_closed=False).count()
+    
+    def get_my_resolved_complaints(self, user):
+        """Get resolved complaints for the current user."""
+        return Complaint.objects.filter(user=user, status__is_closed=True).count()
+    
+    def get_my_recent_complaints(self, user):
+        """Get recent complaints for the current user."""
+        return Complaint.objects.filter(user=user).select_related('type', 'status').order_by('-created_at')[:5]
 
 
 class ReportsListView(AdminRequiredMixin, ListView):

@@ -1,0 +1,666 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin: Complaint #{{ complaint.id }} - Alpha Lab IT Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-header {
+        background: linear-gradient(135deg, #dc3545 0%, #6f42c1 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .admin-header::before {
+        content: '';
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 150px;
+        height: 150px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+    .admin-control-panel {
+        position: sticky;
+        top: 80px;
+    }
+    .metadata-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    .metadata-item {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #dc3545;
+    }
+    .audit-trail {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+        padding: 1.5rem;
+    }
+    .admin-action-btn {
+        transition: all 0.3s ease;
+    }
+    .admin-action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .system-info {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Navigation -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'reports:dashboard' %}">Admin Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'complaints:list' %}">All Complaints</a></li>
+            <li class="breadcrumb-item active">Complaint #{{ complaint.id }}</li>
+        </ol>
+    </nav>
+
+    <!-- Admin Header -->
+    <div class="admin-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-6 mb-2">
+                    <i class="fas fa-shield-alt me-3"></i>
+                    Administrative Overview
+                </h1>
+                <h2 class="h4 mb-1">{{ complaint.title }}</h2>
+                <p class="lead mb-0">Complaint #{{ complaint.id }} - Full System Control</p>
+                <div class="mt-2">
+                    <span class="badge badge-lg bg-light text-dark me-2">
+                        <i class="fas fa-user me-1"></i>{{ complaint.user.get_full_name|default:complaint.user.username }}
+                    </span>
+                    <span class="badge badge-lg bg-light text-dark me-2">
+                        <i class="fas fa-calendar me-1"></i>{{ complaint.created_at|date:"M d, Y" }}
+                    </span>
+                    {% if complaint.assigned_to %}
+                    <span class="badge badge-lg bg-success">
+                        <i class="fas fa-user-cog me-1"></i>{{ complaint.assigned_to.get_full_name|default:complaint.assigned_to.username }}
+                    </span>
+                    {% else %}
+                    <span class="badge badge-lg bg-warning text-dark">
+                        <i class="fas fa-user-slash me-1"></i>Unassigned
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="text-white-50 mb-1">
+                    <i class="fas fa-crown me-2"></i>Administrator View
+                </div>
+                <div class="text-white-50 mb-1">
+                    <i class="fas fa-clock me-2"></i>{{ complaint.created_at|timesince }} ago
+                </div>
+                <div class="text-light">
+                    <i class="fas fa-eye me-2"></i>Full Access Granted
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Metadata Grid -->
+    <div class="metadata-grid">
+        <div class="metadata-item">
+            <h6 class="text-danger mb-1"><i class="fas fa-flag me-2"></i>Status</h6>
+            <span class="badge 
+                {% if complaint.status.name == 'Open' %}bg-warning text-dark
+                {% elif complaint.status.name == 'In Progress' %}bg-info
+                {% elif complaint.status.is_closed %}bg-success
+                {% else %}bg-secondary{% endif %}">
+                {{ complaint.status.name }}
+            </span>
+        </div>
+        <div class="metadata-item">
+            <h6 class="text-danger mb-1"><i class="fas fa-exclamation-triangle me-2"></i>Priority</h6>
+            <span class="badge 
+                {% if complaint.urgency == 'critical' %}bg-danger
+                {% elif complaint.urgency == 'high' %}bg-warning text-dark
+                {% elif complaint.urgency == 'medium' %}bg-info
+                {% else %}bg-success{% endif %}">
+                {{ complaint.get_urgency_display }}
+            </span>
+        </div>
+        <div class="metadata-item">
+            <h6 class="text-danger mb-1"><i class="fas fa-tag me-2"></i>Type</h6>
+            <span class="text-muted">{{ complaint.type.name }}</span>
+        </div>
+        <div class="metadata-item">
+            <h6 class="text-danger mb-1"><i class="fas fa-building me-2"></i>Department</h6>
+            <span class="text-muted">{{ complaint.department.name|default:"Not specified" }}</span>
+        </div>
+        <div class="metadata-item">
+            <h6 class="text-danger mb-1"><i class="fas fa-chart-line me-2"></i>SLA Status</h6>
+            {% with days_open=complaint.days_open %}
+            <span class="badge 
+                {% if days_open > 3 %}bg-danger
+                {% elif days_open > 1 %}bg-warning text-dark
+                {% else %}bg-success{% endif %}">
+                {{ days_open }} day{{ days_open|pluralize }}
+            </span>
+            {% endwith %}
+        </div>
+        <div class="metadata-item">
+            <h6 class="text-danger mb-1"><i class="fas fa-paperclip me-2"></i>Attachments</h6>
+            <span class="text-muted">{{ attachments.count }} file{{ attachments.count|pluralize }}</span>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8 mb-4">
+            <!-- Complaint Details -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Complete Complaint Information
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportComplaint()">
+                            <i class="fas fa-download me-1"></i>Export
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="duplicateComplaint()">
+                            <i class="fas fa-copy me-1"></i>Duplicate
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- User Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Reporter Information</h6>
+                            <div class="p-3 bg-light rounded">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-user text-primary me-2"></i>
+                                    <strong>{{ complaint.user.get_full_name|default:complaint.user.username }}</strong>
+                                </div>
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-envelope text-info me-2"></i>
+                                    <a href="mailto:{{ complaint.user.email }}">{{ complaint.user.email }}</a>
+                                </div>
+                                {% if complaint.user.profile.phone %}
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-phone text-success me-2"></i>
+                                    <a href="tel:{{ complaint.user.profile.phone }}">{{ complaint.user.profile.phone }}</a>
+                                </div>
+                                {% endif %}
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-id-badge text-warning me-2"></i>
+                                    <span>{{ complaint.user.profile.role.name|default:"User" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary">System Information</h6>
+                            <div class="p-3 bg-light rounded">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Complaint ID:</span>
+                                    <code>#{{ complaint.id }}</code>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Created:</span>
+                                    <span>{{ complaint.created_at|date:"M d, Y H:i" }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Last Modified:</span>
+                                    <span>{{ complaint.updated_at|date:"M d, Y H:i" }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>IP Address:</span>
+                                    <code>{{ complaint.ip_address|default:"N/A" }}</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Location & Description -->
+                    <div class="mb-4">
+                        {% if complaint.location %}
+                        <h6 class="text-primary">Location</h6>
+                        <div class="p-2 bg-light rounded mb-3">
+                            <i class="fas fa-map-marker-alt text-warning me-2"></i>
+                            {{ complaint.location }}
+                        </div>
+                        {% endif %}
+                        
+                        <h6 class="text-primary">Detailed Description</h6>
+                        <div class="p-3 bg-light rounded">
+                            {{ complaint.description|linebreaks }}
+                        </div>
+                    </div>
+
+                    <!-- Assignment Information -->
+                    {% if complaint.assigned_to %}
+                    <div class="mb-4">
+                        <h6 class="text-primary">Assignment Details</h6>
+                        <div class="p-3 bg-success bg-opacity-10 border border-success rounded">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-user-cog fa-2x text-success me-3"></i>
+                                <div>
+                                    <h6 class="mb-1">{{ complaint.assigned_to.get_full_name|default:complaint.assigned_to.username }}</h6>
+                                    <p class="mb-0 text-muted">{{ complaint.assigned_to.email }}</p>
+                                    <small class="text-success">
+                                        Assigned {{ complaint.assigned_at|timesince|default:"recently" }} ago
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Attachments (Admin View) -->
+            {% if attachments %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-paperclip me-2"></i>File Attachments ({{ attachments.count }})
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="downloadAllFiles()">
+                            <i class="fas fa-download me-1"></i>Download All
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="scanForViruses()">
+                            <i class="fas fa-shield-virus me-1"></i>Virus Scan
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>File</th>
+                                    <th>Size</th>
+                                    <th>Type</th>
+                                    <th>Uploaded</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attachment in attachments %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-file fa-lg text-primary me-2"></i>
+                                            <div>
+                                                <div class="fw-bold">{{ attachment.original_filename }}</div>
+                                                <small class="text-muted">{{ attachment.content_type }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ attachment.file_size|filesizeformat }}</td>
+                                    <td><span class="badge bg-secondary">{{ attachment.content_type|truncatechars:15 }}</span></td>
+                                    <td>{{ attachment.created_at|date:"M d, H:i" }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ attachment.file.url }}" class="btn btn-outline-primary" target="_blank">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ attachment.file.url }}" class="btn btn-outline-success" download>
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <button class="btn btn-outline-danger" onclick="deleteAttachment({{ attachment.id }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Admin Audit Trail -->
+            <div class="audit-trail">
+                <h5 class="mb-3">
+                    <i class="fas fa-clipboard-list me-2"></i>Complete Audit Trail
+                </h5>
+                {% if status_history %}
+                    {% for history in status_history %}
+                    <div class="d-flex mb-3 p-3 bg-white rounded shadow-sm">
+                        <div class="flex-shrink-0">
+                            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                <i class="fas fa-cog"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">Status: {{ history.status.name }}</h6>
+                                    {% if history.notes %}
+                                    <p class="mb-1">{{ history.notes }}</p>
+                                    {% endif %}
+                                    <div class="small text-muted">
+                                        <div>
+                                            <i class="fas fa-user me-1"></i>
+                                            {% if history.changed_by %}
+                                                {{ history.changed_by.get_full_name|default:history.changed_by.username }}
+                                                ({{ history.changed_by.profile.role.name|default:"User" }})
+                                            {% else %}
+                                                System
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <i class="fas fa-network-wired me-1"></i>
+                                            IP: {{ history.ip_address|default:"N/A" }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold">{{ history.created_at|date:"M d, Y" }}</div>
+                                    <div class="small text-muted">{{ history.created_at|time:"H:i" }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clipboard fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No audit trail available</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Admin Control Panel -->
+        <div class="col-lg-4">
+            <div class="admin-control-panel">
+                <!-- Emergency Actions -->
+                <div class="card mb-4 border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Emergency Controls
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-danger admin-action-btn" onclick="escalateToManagement()">
+                                <i class="fas fa-arrow-up me-2"></i>Escalate to Management
+                            </button>
+                            <button class="btn btn-warning admin-action-btn" onclick="flagAsCritical()">
+                                <i class="fas fa-flag me-2"></i>Flag as Critical
+                            </button>
+                            <button class="btn btn-outline-danger admin-action-btn" onclick="suspendUser()">
+                                <i class="fas fa-user-lock me-2"></i>Suspend Reporter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Administrative Actions -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-cogs me-2"></i>Administrative Actions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <form id="assignmentForm" class="mb-3">
+                                {% csrf_token %}
+                                <label class="form-label small">Assign to Engineer</label>
+                                <div class="input-group">
+                                    <select name="engineer_id" class="form-select form-select-sm">
+                                        <option value="">Select Engineer</option>
+                                        {% for engineer in engineers %}
+                                            <option value="{{ engineer.user.id }}" 
+                                                {% if engineer.user.id == complaint.assigned_to.id %}selected{% endif %}>
+                                                {{ engineer.user.get_full_name|default:engineer.user.username }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-primary btn-sm">Assign</button>
+                                </div>
+                            </form>
+                            
+                            <button class="btn btn-success admin-action-btn" onclick="forceResolve()">
+                                <i class="fas fa-check-double me-2"></i>Force Resolve
+                            </button>
+                            <button class="btn btn-info admin-action-btn" onclick="changeCategory()">
+                                <i class="fas fa-tags me-2"></i>Change Category
+                            </button>
+                            <button class="btn btn-warning admin-action-btn" onclick="setPriority()">
+                                <i class="fas fa-sort-amount-up me-2"></i>Set Priority
+                            </button>
+                            <a href="{% url 'complaints:edit' complaint.pk %}" class="btn btn-outline-primary admin-action-btn">
+                                <i class="fas fa-edit me-2"></i>Edit Details
+                            </a>
+                            <button class="btn btn-outline-danger admin-action-btn" onclick="deleteComplaint()">
+                                <i class="fas fa-trash me-2"></i>Delete Complaint
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Information -->
+                <div class="system-info mb-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-server me-2"></i>System Information
+                    </h5>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4>{{ complaint.days_open }}</h4>
+                            <small>Days Open</small>
+                        </div>
+                        <div class="col-6">
+                            <h4>{{ status_history.count }}</h4>
+                            <small>Status Changes</small>
+                        </div>
+                    </div>
+                    <hr class="border-light">
+                    <div class="small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Database ID:</span>
+                            <code>{{ complaint.id }}</code>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Created:</span>
+                            <span>{{ complaint.created_at|date:"Y-m-d H:i" }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Modified:</span>
+                            <span>{{ complaint.updated_at|date:"Y-m-d H:i" }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reporting Tools -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Reporting & Analytics
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-info btn-sm" onclick="generateComplaintReport()">
+                                <i class="fas fa-file-alt me-2"></i>Generate Report
+                            </button>
+                            <button class="btn btn-outline-success btn-sm" onclick="viewSimilarComplaints()">
+                                <i class="fas fa-search me-2"></i>Similar Issues
+                            </button>
+                            <button class="btn btn-outline-warning btn-sm" onclick="viewUserHistory()">
+                                <i class="fas fa-history me-2"></i>User History
+                            </button>
+                            <a href="{% url 'reports:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Assignment form handler
+    document.getElementById('assignmentForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const engineerId = formData.get('engineer_id');
+        
+        if (!engineerId) {
+            alert('Please select an engineer');
+            return;
+        }
+        
+        fetch(`/complaints/{{ complaint.id }}/assign/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                engineer_id: engineerId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Complaint assigned successfully!');
+                location.reload();
+            } else {
+                alert('Error assigning complaint: ' + data.message);
+            }
+        });
+    });
+});
+
+// Admin action functions
+function escalateToManagement() {
+    if (confirm('Escalate this complaint to management? This will send notifications to all administrators.')) {
+        // Implementation for management escalation
+        console.log('Escalate to management');
+    }
+}
+
+function flagAsCritical() {
+    if (confirm('Flag this complaint as critical? This will change its priority and send urgent notifications.')) {
+        // Implementation for critical flagging
+        console.log('Flag as critical');
+    }
+}
+
+function suspendUser() {
+    const reason = prompt('Please provide a reason for suspending this user:');
+    if (reason) {
+        if (confirm('Are you sure you want to suspend this user? They will not be able to submit new complaints.')) {
+            // Implementation for user suspension
+            console.log('Suspend user:', reason);
+        }
+    }
+}
+
+function forceResolve() {
+    const resolution = prompt('Enter resolution notes:');
+    if (resolution) {
+        if (confirm('Force resolve this complaint? This will mark it as resolved regardless of current state.')) {
+            // Implementation for force resolve
+            console.log('Force resolve:', resolution);
+        }
+    }
+}
+
+function changeCategory() {
+    // Implementation for category change
+    console.log('Change category');
+}
+
+function setPriority() {
+    const priority = prompt('Enter new priority (low, medium, high, critical):');
+    if (priority && ['low', 'medium', 'high', 'critical'].includes(priority)) {
+        // Implementation for priority change
+        console.log('Set priority:', priority);
+    }
+}
+
+function deleteComplaint() {
+    const reason = prompt('Please provide a reason for deleting this complaint:');
+    if (reason) {
+        if (confirm('Are you ABSOLUTELY sure you want to delete this complaint? This action cannot be undone!')) {
+            // Implementation for complaint deletion
+            console.log('Delete complaint:', reason);
+        }
+    }
+}
+
+function deleteAttachment(attachmentId) {
+    if (confirm('Delete this attachment?')) {
+        fetch(`/complaints/attachments/${attachmentId}/delete/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error deleting attachment: ' + data.message);
+            }
+        });
+    }
+}
+
+function exportComplaint() {
+    window.location.href = `/complaints/{{ complaint.id }}/export/`;
+}
+
+function duplicateComplaint() {
+    if (confirm('Create a duplicate of this complaint?')) {
+        // Implementation for complaint duplication
+        console.log('Duplicate complaint');
+    }
+}
+
+function downloadAllFiles() {
+    window.location.href = `/complaints/{{ complaint.id }}/download-attachments/`;
+}
+
+function scanForViruses() {
+    if (confirm('Run virus scan on all attachments? This may take a few minutes.')) {
+        // Implementation for virus scanning
+        console.log('Virus scan initiated');
+    }
+}
+
+function generateComplaintReport() {
+    window.location.href = `/reports/complaint/{{ complaint.id }}/`;
+}
+
+function viewSimilarComplaints() {
+    window.location.href = `/complaints/similar/{{ complaint.id }}/`;
+}
+
+function viewUserHistory() {
+    window.location.href = `/admin/auth/user/{{ complaint.user.id }}/change/`;
+}
+</script>
+{% endblock %}

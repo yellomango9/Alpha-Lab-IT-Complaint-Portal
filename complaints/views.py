@@ -14,69 +14,129 @@ from core.models import UserProfile
 
 
 class ComplaintListView(LoginRequiredMixin, ListView):
-    """List view for complaints with filtering and pagination."""
+    """List view for complaints with role-based functionality."""
     model = Complaint
-    template_name = 'complaints/list.html'
     context_object_name = 'complaints'
     paginate_by = 10
     
+    def get_template_names(self):
+        """Return template based on user role."""
+        user = self.request.user
+        if hasattr(user, 'profile'):
+            if user.profile.is_admin:
+                return ['complaints/admin_list.html']
+            elif user.profile.is_engineer:
+                return ['complaints/engineer_list.html']
+        return ['complaints/user_list.html']
+    
     def get_queryset(self):
         queryset = Complaint.objects.select_related('user', 'type', 'status', 'assigned_to')
-        
-        # Filter by user role
         user = self.request.user
-        if user.is_staff or (hasattr(user, 'profile') and (user.profile.is_engineer or user.profile.is_admin)):
-            # Engineers/admins see all complaints
-            pass
+        
+        # Role-based filtering
+        if hasattr(user, 'profile'):
+            if user.profile.is_admin:
+                # Admins see all complaints with full details
+                pass
+            elif user.profile.is_engineer:
+                # Engineers see all complaints they can work on
+                pass
+            elif user.profile.role and user.profile.role.name.lower() == 'amc_admin':
+                # AMC Admins see only AMC-related complaints
+                queryset = queryset.filter(
+                    Q(type__name__icontains='hardware') | 
+                    Q(type__name__icontains='maintenance') |
+                    Q(type__name__icontains='amc')
+                )
         else:
             # Regular users see only their complaints
             queryset = queryset.filter(user=user)
         
-        # Apply filters
-        status_filter = self.request.GET.get('status')
-        type_filter = self.request.GET.get('type')
-        urgency_filter = self.request.GET.get('urgency')
-        search_query = self.request.GET.get('search')
-        
-        if status_filter:
-            queryset = queryset.filter(status_id=status_filter)
-        
-        if type_filter:
-            queryset = queryset.filter(type_id=type_filter)
-        
-        if urgency_filter:
-            queryset = queryset.filter(urgency=urgency_filter)
-        
-        if search_query:
-            queryset = queryset.filter(
-                Q(title__icontains=search_query) |
-                Q(description__icontains=search_query) |
-                Q(id__icontains=search_query)
-            )
+        # Apply filters only for admin/engineer views
+        if hasattr(user, 'profile') and (user.profile.is_admin or user.profile.is_engineer):
+            status_filter = self.request.GET.get('status')
+            type_filter = self.request.GET.get('type')
+            urgency_filter = self.request.GET.get('urgency')
+            search_query = self.request.GET.get('search')
+            assigned_filter = self.request.GET.get('assigned_to')
+            
+            if status_filter:
+                queryset = queryset.filter(status_id=status_filter)
+            if type_filter:
+                queryset = queryset.filter(type_id=type_filter)
+            if urgency_filter:
+                queryset = queryset.filter(urgency=urgency_filter)
+            if assigned_filter:
+                queryset = queryset.filter(assigned_to_id=assigned_filter)
+            if search_query:
+                queryset = queryset.filter(
+                    Q(title__icontains=search_query) |
+                    Q(description__icontains=search_query) |
+                    Q(id__icontains=search_query)
+                )
         
         return queryset.order_by('-created_at')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        # Basic context for all users
+        context['user_role'] = 'user'  # default
+        
+        if hasattr(user, 'profile') and user.profile.role:
+            context['user_role'] = user.profile.role.name.lower()
+        
+        # Add role-specific context
+        if hasattr(user, 'profile') and (user.profile.is_admin or user.profile.is_engineer):
+            context.update({
+                'statuses': Status.objects.filter(is_active=True),
+                'complaint_types': ComplaintType.objects.filter(is_active=True),
+                'urgency_choices': Complaint.URGENCY_CHOICES,
+                'engineers': UserProfile.objects.filter(
+                    role__name__icontains='engineer'
+                ).select_related('user'),
+                'current_filters': {
+                    'status': self.request.GET.get('status', ''),
+                    'type': self.request.GET.get('type', ''),
+                    'urgency': self.request.GET.get('urgency', ''),
+                    'search': self.request.GET.get('search', ''),
+                    'assigned_to': self.request.GET.get('assigned_to', ''),
+                }
+            })
+        
+        # Status counts for all roles
+        if hasattr(user, 'profile') and user.profile.is_admin:
+            all_complaints = Complaint.objects.all()
+        elif hasattr(user, 'profile') and user.profile.is_engineer:
+            all_complaints = Complaint.objects.all()
+        else:
+            all_complaints = Complaint.objects.filter(user=user)
+            
         context.update({
-            'statuses': Status.objects.filter(is_active=True),
-            'complaint_types': ComplaintType.objects.filter(is_active=True),
-            'urgency_choices': Complaint.URGENCY_CHOICES,
-            'current_filters': {
-                'status': self.request.GET.get('status', ''),
-                'type': self.request.GET.get('type', ''),
-                'urgency': self.request.GET.get('urgency', ''),
-                'search': self.request.GET.get('search', ''),
-            }
+            'total_count': all_complaints.count(),
+            'open_count': all_complaints.filter(status__name='Open').count(),
+            'in_progress_count': all_complaints.filter(status__name='In Progress').count(),
+            'resolved_count': all_complaints.filter(status__is_closed=True).count(),
         })
+        
         return context
 
 
 class ComplaintDetailView(LoginRequiredMixin, DetailView):
-    """Detail view for individual complaints."""
+    """Detail view for individual complaints with role-based functionality."""
     model = Complaint
-    template_name = 'complaints/detail.html'
     context_object_name = 'complaint'
+    
+    def get_template_names(self):
+        """Return template based on user role."""
+        user = self.request.user
+        if hasattr(user, 'profile'):
+            if user.profile.is_admin:
+                return ['complaints/admin_detail.html']
+            elif user.profile.is_engineer:
+                return ['complaints/engineer_detail.html']
+        return ['complaints/user_detail.html']
     
     def get_queryset(self):
         queryset = Complaint.objects.select_related('user', 'type', 'status', 'assigned_to')
@@ -90,24 +150,55 @@ class ComplaintDetailView(LoginRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['attachments'] = self.object.attachments.all()
-        context['can_edit'] = self.can_edit_complaint()
-        return context
-    
-    def can_edit_complaint(self):
-        """Check if user can edit this complaint."""
         user = self.request.user
-        complaint = self.object
         
-        # Owner can edit if not resolved
-        if complaint.user == user and not complaint.is_resolved:
-            return True
+        # Basic context for all users
+        context.update({
+            'attachments': self.object.attachments.all(),
+            'status_history': StatusHistory.objects.filter(
+                complaint=self.object
+            ).select_related('changed_by').order_by('-created_at'),
+        })
         
-        # Engineers/admins can always edit
-        if hasattr(user, 'profile') and user.profile.is_engineer:
-            return True
+        # Role-specific context
+        if hasattr(user, 'profile'):
+            if user.profile.is_admin:
+                context.update({
+                    'can_edit': True,
+                    'can_assign': True,
+                    'can_change_status': True,
+                    'can_delete': True,
+                    'available_statuses': Status.objects.filter(is_active=True),
+                    'engineers': UserProfile.objects.filter(
+                        role__name__icontains='engineer'
+                    ).select_related('user'),
+                })
+            elif user.profile.is_engineer:
+                context.update({
+                    'can_edit': True,
+                    'can_assign': False,  # Engineers typically can't reassign
+                    'can_change_status': True,
+                    'can_delete': False,
+                    'available_statuses': Status.objects.filter(
+                        is_active=True, 
+                        name__in=['In Progress', 'Resolved', 'Closed']
+                    ),
+                })
+        else:
+            # Regular user context
+            context.update({
+                'can_edit': self.object.user == user and not self.object.status.is_closed,
+                'can_assign': False,
+                'can_change_status': False,
+                'can_delete': False,
+                'can_provide_feedback': (
+                    self.object.status.is_closed and 
+                    self.object.user == user and 
+                    not hasattr(self.object, 'feedback')
+                ),
+            })
         
-        return False
+        return context
 
 
 class ComplaintCreateView(LoginRequiredMixin, CreateView):

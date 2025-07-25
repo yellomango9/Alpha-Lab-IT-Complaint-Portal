@@ -1,0 +1,651 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Administrator Dashboard - Alpha Lab IT Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-header {
+        background: linear-gradient(135deg, #dc3545 0%, #6f42c1 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .admin-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transform: translate(50%, -50%);
+    }
+    .system-health {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+    .metric-card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .metric-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 25px rgba(0,0,0,0.15);
+    }
+    .engineer-performance-item {
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        background: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+    .engineer-performance-item:hover {
+        background: #e9ecef;
+        transform: translateX(3px);
+    }
+    .alert-panel {
+        border-left: 4px solid #dc3545;
+        background: #f8d7da;
+        border-radius: 0 8px 8px 0;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Admin Header -->
+    <div class="admin-header">
+        <div class="row align-items-center">
+            <div class="col-md-9">
+                <h1 class="display-5 mb-2">
+                    <i class="fas fa-shield-alt me-3"></i>
+                    Administrator Control Panel
+                </h1>
+                <p class="lead mb-0">Complete system oversight, analytics, and management tools</p>
+                <div class="mt-2">
+                    <span class="badge bg-light text-dark me-2">
+                        <i class="fas fa-server me-1"></i>{{ system_health.status }}
+                    </span>
+                    <span class="badge bg-light text-dark">
+                        <i class="fas fa-chart-line me-1"></i>Health: {{ system_health.health_score }}%
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-3 text-end">
+                <div class="text-white-50 mb-1">
+                    <i class="fas fa-crown me-2"></i>Administrator
+                </div>
+                <div class="text-white-50 mb-1">
+                    <i class="fas fa-user me-2"></i>{{ user.get_full_name|default:user.username }}
+                </div>
+                <div class="text-white-50">
+                    <i class="fas fa-calendar me-2"></i>{{ "now"|date:"M d, Y H:i" }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Overview Metrics -->
+    <div class="row mb-4">
+        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card border-primary" onclick="viewAllComplaints()">
+                <div class="card-body text-center">
+                    <i class="fas fa-clipboard-list fa-2x text-primary mb-2"></i>
+                    <h3 class="text-primary">{{ total_complaints }}</h3>
+                    <p class="mb-0 small">Total Complaints</p>
+                    <small class="text-muted">All time</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card border-warning" onclick="viewOpenComplaints()">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-circle fa-2x text-warning mb-2"></i>
+                    <h3 class="text-warning">{{ open_complaints }}</h3>
+                    <p class="mb-0 small">Currently Open</p>
+                    <small class="text-muted">Need attention</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card border-success" onclick="viewResolvedToday()">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h3 class="text-success">{{ resolved_today }}</h3>
+                    <p class="mb-0 small">Resolved Today</p>
+                    <small class="text-muted">Daily progress</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card border-danger" onclick="viewCriticalIssues()">
+                <div class="card-body text-center">
+                    <i class="fas fa-fire fa-2x text-danger mb-2"></i>
+                    <h3 class="text-danger">{{ system_health.critical_count }}</h3>
+                    <p class="mb-0 small">Critical Issues</p>
+                    <small class="text-muted">Urgent attention</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card border-secondary" onclick="viewUnassigned()">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-slash fa-2x text-secondary mb-2"></i>
+                    <h3 class="text-secondary">{{ system_health.unassigned_count }}</h3>
+                    <p class="mb-0 small">Unassigned</p>
+                    <small class="text-muted">Need assignment</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card border-info" onclick="viewOverdue()">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x text-info mb-2"></i>
+                    <h3 class="text-info">{{ system_health.overdue_count }}</h3>
+                    <p class="mb-0 small">Overdue</p>
+                    <small class="text-muted">Past SLA</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Health & Alerts Row -->
+    <div class="row mb-4">
+        <div class="col-lg-4 mb-4">
+            <div class="system-health">
+                <h5 class="mb-3">
+                    <i class="fas fa-heartbeat me-2"></i>System Health
+                </h5>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h3>{{ system_health.health_score }}%</h3>
+                        <small>Overall</small>
+                    </div>
+                    <div class="col-4">
+                        <h3>{{ avg_resolution_time }}h</h3>
+                        <small>Avg Resolution</small>
+                    </div>
+                    <div class="col-4">
+                        <h3>8</h3>
+                        <small>Engineers Active</small>
+                    </div>
+                </div>
+                <div class="progress mt-3" style="height: 8px;">
+                    <div class="progress-bar bg-light" style="width: {{ system_health.health_score }}%"></div>
+                </div>
+                <div class="text-center mt-2">
+                    <small>System Status: {{ system_health.status }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>System Alerts
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshAlerts()">
+                        <i class="fas fa-sync me-1"></i>Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="alert-panel p-3 mb-3">
+                                <h6 class="text-danger mb-2">
+                                    <i class="fas fa-fire me-2"></i>Critical Issues
+                                </h6>
+                                <p class="mb-1">{{ system_health.critical_count }} critical complaints need immediate attention</p>
+                                <button class="btn btn-sm btn-danger" onclick="viewCriticalIssues()">Review</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="alert-panel p-3 mb-3" style="border-left-color: #ffc107; background: #fff3cd;">
+                                <h6 class="text-warning mb-2">
+                                    <i class="fas fa-clock me-2"></i>Overdue Items
+                                </h6>
+                                <p class="mb-1">{{ system_health.overdue_count }} complaints are past their SLA</p>
+                                <button class="btn btn-sm btn-warning" onclick="viewOverdue()">Review</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="alert-panel p-3 mb-3" style="border-left-color: #6c757d; background: #f8f9fa;">
+                                <h6 class="text-secondary mb-2">
+                                    <i class="fas fa-user-slash me-2"></i>Unassigned
+                                </h6>
+                                <p class="mb-1">{{ system_health.unassigned_count }} complaints await assignment</p>
+                                <button class="btn btn-sm btn-secondary" onclick="bulkAssign()">Assign</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="alert-panel p-3 mb-3" style="border-left-color: #17a2b8; background: #d1ecf1;">
+                                <h6 class="text-info mb-2">
+                                    <i class="fas fa-chart-line me-2"></i>Performance
+                                </h6>
+                                <p class="mb-1">System performance is within acceptable limits</p>
+                                <button class="btn btn-sm btn-info" onclick="viewPerformance()">Details</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Charts Row -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Monthly Trends
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="trendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-building me-2"></i>Department Analysis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="departmentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row">
+        <!-- Engineer Performance -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users-cog me-2"></i>Engineer Performance
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-info" onclick="generatePerformanceReport()">
+                            <i class="fas fa-file-alt me-1"></i>Report
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="manageEngineers()">
+                            <i class="fas fa-user-cog me-1"></i>Manage
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if engineer_performance %}
+                        {% for engineer in engineer_performance %}
+                        <div class="engineer-performance-item">
+                            <div class="row align-items-center">
+                                <div class="col-md-3">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-user-tie fa-2x text-primary me-3"></i>
+                                        <div>
+                                            <h6 class="mb-0">{{ engineer.name }}</h6>
+                                            <small class="text-muted">Engineer</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <h5 class="text-primary mb-0">{{ engineer.total_assigned }}</h5>
+                                    <small class="text-muted">Assigned</small>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <h5 class="text-success mb-0">{{ engineer.total_resolved }}</h5>
+                                    <small class="text-muted">Resolved</small>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <h5 class="text-info mb-0">{{ engineer.resolution_rate }}%</h5>
+                                    <small class="text-muted">Success Rate</small>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <h5 class="text-warning mb-0">{{ engineer.avg_resolution_time }}h</h5>
+                                    <small class="text-muted">Avg Time</small>
+                                </div>
+                                <div class="col-md-1 text-end">
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                            <i class="fas fa-cog"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#" onclick="viewEngineerDetails('{{ engineer.name }}')">
+                                                <i class="fas fa-eye me-1"></i>View Details
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="assignToEngineer('{{ engineer.name }}')">
+                                                <i class="fas fa-user-plus me-1"></i>Assign Tasks
+                                            </a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <div class="progress" style="height: 4px;">
+                                        <div class="progress-bar bg-success" style="width: {{ engineer.resolution_rate }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Engineer Data</h5>
+                            <p class="text-muted">Performance data will appear here once engineers start working on complaints.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Tools & Quick Actions -->
+        <div class="col-lg-4 mb-4">
+            <!-- Administrative Tools -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tools me-2"></i>Admin Tools
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'reports:generate' %}" class="btn btn-primary">
+                            <i class="fas fa-chart-bar me-2"></i>Generate Reports
+                        </a>
+                        <button class="btn btn-outline-success" onclick="bulkActions()">
+                            <i class="fas fa-tasks me-2"></i>Bulk Operations
+                        </button>
+                        <button class="btn btn-outline-info" onclick="systemSettings()">
+                            <i class="fas fa-cog me-2"></i>System Settings
+                        </button>
+                        <a href="/admin/" class="btn btn-outline-secondary" target="_blank">
+                            <i class="fas fa-database me-2"></i>Database Admin
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Management -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-server me-2"></i>System Management
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action" onclick="manageUsers()">
+                            <i class="fas fa-users me-2 text-primary"></i>User Management
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" onclick="manageDepartments()">
+                            <i class="fas fa-building me-2 text-info"></i>Departments
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" onclick="manageComplaintTypes()">
+                            <i class="fas fa-tags me-2 text-warning"></i>Complaint Types
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" onclick="systemLogs()">
+                            <i class="fas fa-file-alt me-2 text-success"></i>System Logs
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tachometer-alt me-2"></i>Quick Stats
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Today's Submissions</span>
+                        <span class="fw-bold text-primary">23</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Average Response Time</span>
+                        <span class="fw-bold text-info">{{ avg_resolution_time }}h</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Customer Satisfaction</span>
+                        <span class="fw-bold text-success">4.2/5 ⭐</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>System Uptime</span>
+                        <span class="fw-bold text-warning">99.9%</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Active Users</span>
+                        <span class="fw-bold text-secondary">156</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initializeTrendsChart();
+    initializeDepartmentChart();
+    
+    // Auto-refresh every 5 minutes
+    setInterval(refreshDashboard, 300000);
+});
+
+function initializeTrendsChart() {
+    const ctx = document.getElementById('trendsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [
+                {% for trend in monthly_trends %}
+                    '{{ trend.month_name }}',
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Complaints',
+                data: [
+                    {% for trend in monthly_trends %}
+                        {{ trend.complaints }},
+                    {% endfor %}
+                ],
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Resolved',
+                data: [
+                    {% for trend in monthly_trends %}
+                        {{ trend.resolved }},
+                    {% endfor %}
+                ],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function initializeDepartmentChart() {
+    const ctx = document.getElementById('departmentChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [
+                {% for dept in department_stats %}
+                    '{{ dept.name }}',
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Total',
+                data: [
+                    {% for dept in department_stats %}
+                        {{ dept.total_complaints }},
+                    {% endfor %}
+                ],
+                backgroundColor: '#17a2b8'
+            }, {
+                label: 'Resolved',
+                data: [
+                    {% for dept in department_stats %}
+                        {{ dept.resolved_complaints }},
+                    {% endfor %}
+                ],
+                backgroundColor: '#28a745'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Navigation functions
+function viewAllComplaints() {
+    window.location.href = '{% url "complaints:list" %}';
+}
+
+function viewOpenComplaints() {
+    window.location.href = '{% url "complaints:list" %}?status=open';
+}
+
+function viewResolvedToday() {
+    window.location.href = '{% url "complaints:list" %}?date=today&status=resolved';
+}
+
+function viewCriticalIssues() {
+    window.location.href = '{% url "complaints:list" %}?urgency=critical';
+}
+
+function viewUnassigned() {
+    window.location.href = '{% url "complaints:list" %}?assigned_to=-1';
+}
+
+function viewOverdue() {
+    window.location.href = '{% url "complaints:list" %}?overdue=1';
+}
+
+// Admin action functions
+function bulkAssign() {
+    if (confirm('Auto-assign all unassigned complaints based on workload?')) {
+        // Implementation for intelligent bulk assignment
+        console.log('Bulk auto-assign');
+    }
+}
+
+function bulkActions() {
+    // Show bulk actions modal
+    console.log('Show bulk actions');
+}
+
+function systemSettings() {
+    // Open system settings
+    console.log('System settings');
+}
+
+function manageUsers() {
+    window.location.href = '/admin/auth/user/';
+}
+
+function manageDepartments() {
+    window.location.href = '/admin/core/department/';
+}
+
+function manageComplaintTypes() {
+    window.location.href = '/admin/complaints/complainttype/';
+}
+
+function systemLogs() {
+    // Open system logs
+    console.log('System logs');
+}
+
+function generatePerformanceReport() {
+    window.location.href = '{% url "reports:generate" %}?type=performance';
+}
+
+function manageEngineers() {
+    window.location.href = '/admin/core/userprofile/?role__name__icontains=engineer';
+}
+
+function viewEngineerDetails(engineerName) {
+    console.log('View details for:', engineerName);
+}
+
+function assignToEngineer(engineerName) {
+    console.log('Assign to:', engineerName);
+}
+
+function refreshAlerts() {
+    location.reload();
+}
+
+function viewPerformance() {
+    window.location.href = '{% url "reports:dashboard" %}';
+}
+
+function refreshDashboard() {
+    // AJAX refresh of dashboard data
+    console.log('Refreshing dashboard...');
+}
+</script>
+{% endblock %}

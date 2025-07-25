@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Complaints - Alpha Lab IT Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Simple Header for Users -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-6 text-primary mb-2">
+                <i class="fas fa-clipboard-list me-3"></i>My Complaints
+            </h1>
+            <p class="text-muted mb-0">View and track your submitted complaints</p>
+        </div>
+        <a href="{% url 'complaints:submit' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Submit New Complaint
+        </a>
+    </div>
+
+    <!-- Simple Status Overview -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <i class="fas fa-clipboard-list fa-2x text-primary mb-2"></i>
+                    <h3 class="text-primary">{{ total_count }}</h3>
+                    <p class="mb-0">Total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-circle fa-2x text-warning mb-2"></i>
+                    <h3 class="text-warning">{{ open_count }}</h3>
+                    <p class="mb-0">Open</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-cog fa-2x text-info mb-2"></i>
+                    <h3 class="text-info">{{ in_progress_count }}</h3>
+                    <p class="mb-0">In Progress</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h3 class="text-success">{{ resolved_count }}</h3>
+                    <p class="mb-0">Resolved</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if complaints %}
+    <!-- Simple List View for Users -->
+    <div class="row">
+        {% for complaint in complaints %}
+        <div class="col-lg-6 col-xl-4 mb-4">
+            <div class="card h-100 complaint-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <a href="{% url 'complaints:detail' complaint.pk %}" class="text-decoration-none">
+                            #{{ complaint.id }} - {{ complaint.title|truncatechars:25 }}
+                        </a>
+                    </h6>
+                    <span class="badge {% if complaint.status.name == 'Open' %}bg-warning{% elif complaint.status.name == 'In Progress' %}bg-info{% elif complaint.status.is_closed %}bg-success{% else %}bg-secondary{% endif %}">
+                        {{ complaint.status.name }}
+                    </span>
+                </div>
+                
+                <div class="card-body">
+                    <p class="card-text text-muted">{{ complaint.description|truncatechars:100 }}</p>
+                    
+                    <div class="row g-2 small">
+                        <div class="col-6">
+                            <i class="fas fa-tag text-primary me-1"></i>
+                            <span>{{ complaint.type.name }}</span>
+                        </div>
+                        <div class="col-6">
+                            <i class="fas fa-exclamation-triangle me-1 text-{% if complaint.urgency == 'critical' %}danger{% elif complaint.urgency == 'high' %}warning{% elif complaint.urgency == 'medium' %}info{% else %}secondary{% endif %}"></i>
+                            <span>{{ complaint.get_urgency_display }}</span>
+                        </div>
+                        {% if complaint.location %}
+                        <div class="col-12 mt-2">
+                            <i class="fas fa-map-marker-alt text-secondary me-1"></i>
+                            <span class="text-muted">{{ complaint.location }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        {{ complaint.created_at|timesince }} ago
+                    </small>
+                    {% if complaint.status.is_closed and not complaint.feedback %}
+                    <a href="{% url 'feedback:create' complaint.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-star me-1"></i>Rate
+                    </a>
+                    {% elif complaint.feedback %}
+                    <small class="text-success">
+                        <i class="fas fa-star me-1"></i>Rated
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Simple Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Complaints pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+            </li>
+            {% endif %}
+            
+            <li class="page-item active">
+                <span class="page-link">{{ page_obj.number }}</span>
+            </li>
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+        
+        <div class="text-center mt-2">
+            <small class="text-muted">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} complaints
+            </small>
+        </div>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-5">
+        <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+        <h3 class="text-muted">No Complaints Yet</h3>
+        <p class="text-muted lead">You haven't submitted any complaints yet.</p>
+        <a href="{% url 'complaints:submit' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Submit Your First Complaint
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Links Section -->
+<div class="container-fluid mt-5">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-question-circle fa-3x text-info mb-3"></i>
+                    <h5>Need Help?</h5>
+                    <p class="text-muted">Check our FAQ section for common issues and solutions.</p>
+                    <a href="{% url 'faq:list' %}" class="btn btn-outline-info">
+                        <i class="fas fa-external-link-alt me-1"></i>View FAQ
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-phone fa-3x text-success mb-3"></i>
+                    <h5>Need Immediate Help?</h5>
+                    <p class="text-muted">For urgent issues, contact our IT support directly.</p>
+                    <p class="fw-bold">📞 IT Support: +1-800-IT-HELP</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-user-edit fa-3x text-warning mb-3"></i>
+                    <h5>Update Profile</h5>
+                    <p class="text-muted">Keep your contact information up to date.</p>
+                    <a href="{% url 'core:profile' %}" class="btn btn-outline-warning">
+                        <i class="fas fa-user-edit me-1"></i>Edit Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add hover effects to complaint cards
+    const complaintCards = document.querySelectorAll('.complaint-card');
+    complaintCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = '';
+        });
+    });
+});
+</script>
+{% endblock %}

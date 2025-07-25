@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Feedback Statistics - Alpha Lab IT Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-6 text-primary mb-2">
+                <i class="fas fa-chart-bar me-3"></i>Feedback Statistics
+            </h1>
+            <p class="text-muted mb-0">Customer satisfaction metrics and insights</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'feedback:list' %}" class="btn btn-outline-primary">
+                <i class="fas fa-list me-2"></i>View All Feedback
+            </a>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card primary">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="metric-value text-primary">{{ total_feedback }}</p>
+                        <p class="metric-label">Total Feedback</p>
+                    </div>
+                    <div class="metric-icon text-primary">
+                        <i class="fas fa-star"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card success">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="metric-value text-success">{{ avg_rating }}</p>
+                        <p class="metric-label">Average Rating</p>
+                    </div>
+                    <div class="metric-icon text-success">
+                        <i class="fas fa-thumbs-up"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card info">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="metric-value text-info">
+                            {% for rating in rating_distribution %}
+                                {% if rating.rating == 5 %}{{ rating.count }}{% endif %}
+                            {% endfor %}
+                        </p>
+                        <p class="metric-label">5-Star Reviews</p>
+                    </div>
+                    <div class="metric-icon text-info">
+                        <i class="fas fa-award"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card warning">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="metric-value text-warning">
+                            {% for rating in rating_distribution %}
+                                {% if rating.rating <= 2 %}{{ rating.count|add:0 }}{% endif %}
+                            {% endfor %}
+                        </p>
+                        <p class="metric-label">Low Ratings</p>
+                    </div>
+                    <div class="metric-icon text-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Data -->
+    <div class="row">
+        <!-- Rating Distribution -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Rating Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="ratingChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Feedback -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Recent Feedback
+                    </h5>
+                    <a href="{% url 'feedback:list' %}" class="btn btn-sm btn-outline-primary">
+                        View All <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Complaint</th>
+                                    <th>Rating</th>
+                                    <th>User</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for feedback in recent_feedback %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'feedback:detail' feedback.pk %}" class="text-decoration-none">
+                                            #{{ feedback.complaint.id }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <div class="feedback-stars">
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= feedback.rating %}
+                                                    <i class="fas fa-star text-warning"></i>
+                                                {% else %}
+                                                    <i class="far fa-star text-warning"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td>{{ feedback.user.get_full_name|default:feedback.user.username }}</td>
+                                    <td>
+                                        <small title="{{ feedback.submitted_at }}">
+                                            {{ feedback.submitted_at|timesince }} ago
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">
+                                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                                        <br>
+                                        No recent feedback
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Rating distribution chart
+    const ratingCtx = document.getElementById('ratingChart');
+    if (ratingCtx) {
+        const ratingData = {
+            labels: [
+                {% for rating in rating_distribution %}
+                    '{{ rating.rating }} Star{{ rating.rating|pluralize }}'{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for rating in rating_distribution %}
+                        {{ rating.count }}{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    '#dc3545', '#fd7e14', '#ffc107', '#28a745', '#667eea'
+                ]
+            }]
+        };
+
+        new Chart(ratingCtx, {
+            type: 'doughnut',
+            data: ratingData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Feedback Detail - Alpha Lab IT Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <!-- Feedback Header -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="fas fa-star me-2"></i>
+                            Feedback for Complaint #{{ feedback.complaint.id }}
+                        </h4>
+                        <p class="mb-0 opacity-75">{{ feedback.complaint.title }}</p>
+                    </div>
+                    <div class="text-end">
+                        <div class="feedback-stars">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= feedback.rating %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-warning"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <small class="opacity-75">{{ feedback.rating }}/5 Stars</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Content -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-comment me-2"></i>
+                            Feedback Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if feedback.comment %}
+                            <div class="mb-3">
+                                <h6>Comments:</h6>
+                                <p class="text-muted">{{ feedback.comment|linebreaks }}</p>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No additional comments provided.</p>
+                        {% endif %}
+
+                        <div class="row mt-4">
+                            <div class="col-sm-6">
+                                <strong>Submitted:</strong>
+                                <p class="text-muted">{{ feedback.submitted_at|date:"M d, Y H:i" }}</p>
+                            </div>
+                            <div class="col-sm-6">
+                                <strong>Public:</strong>
+                                <p class="text-muted">
+                                    {% if feedback.is_public %}
+                                        <i class="fas fa-eye text-success"></i> Yes
+                                    {% else %}
+                                        <i class="fas fa-eye-slash text-secondary"></i> No
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <!-- Complaint Summary -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-ticket-alt me-2"></i>
+                            Related Complaint
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>ID:</strong> #{{ feedback.complaint.id }}</p>
+                        <p><strong>Title:</strong> {{ feedback.complaint.title }}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge status-{{ feedback.complaint.status.name|lower|cut:' ' }}">
+                                {{ feedback.complaint.status.name }}
+                            </span>
+                        </p>
+                        <p><strong>Resolved:</strong> {{ feedback.complaint.resolved_at|date:"M d, Y" }}</p>
+                        
+                        <div class="d-grid">
+                            <a href="{% url 'complaints:detail' feedback.complaint.pk %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye me-1"></i>View Complaint
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                {% if feedback.user == request.user %}
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-cog me-2"></i>
+                            Actions
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'complaints:list' %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-list me-1"></i>Back to Complaints
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

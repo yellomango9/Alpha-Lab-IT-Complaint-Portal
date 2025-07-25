@@ -1,0 +1,541 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Engineering Dashboard - Alpha Lab IT Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .assignment-form {
+        display: none;
+    }
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+    .urgency-indicator {
+        width: 4px;
+        height: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+        border-radius: 4px 0 0 4px;
+    }
+    .urgency-critical { background-color: #dc3545; }
+    .urgency-high { background-color: #fd7e14; }
+    .urgency-medium { background-color: #ffc107; }
+    .urgency-low { background-color: #28a745; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Engineer Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-6 text-primary mb-2">
+                <i class="fas fa-tools me-3"></i>Engineering Dashboard
+            </h1>
+            <p class="text-muted mb-0">Manage and resolve IT complaints</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#assignmentModal">
+                <i class="fas fa-user-cog me-2"></i>Bulk Assignment
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="exportTableAsCSV('complaintsTable', 'engineering_complaints.csv')">
+                <i class="fas fa-download me-2"></i>Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="text-primary">{{ total_count }}</h3>
+                            <p class="mb-0">Total Complaints</p>
+                        </div>
+                        <i class="fas fa-clipboard-list fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="text-warning">{{ open_count }}</h3>
+                            <p class="mb-0">Open & Pending</p>
+                        </div>
+                        <i class="fas fa-exclamation-circle fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="text-info">{{ in_progress_count }}</h3>
+                            <p class="mb-0">In Progress</p>
+                        </div>
+                        <i class="fas fa-cog fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="text-success">{{ resolved_count }}</h3>
+                            <p class="mb-0">Resolved</p>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div class="filter-section">
+        <form method="get" class="filter-form">
+            <div class="row g-3">
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        {% for status in statuses %}
+                            <option value="{{ status.id }}" {% if current_filters.status == status.id|stringformat:"s" %}selected{% endif %}>
+                                {{ status.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label">Type</label>
+                    <select name="type" class="form-select">
+                        <option value="">All Types</option>
+                        {% for type in complaint_types %}
+                            <option value="{{ type.id }}" {% if current_filters.type == type.id|stringformat:"s" %}selected{% endif %}>
+                                {{ type.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label">Urgency</label>
+                    <select name="urgency" class="form-select">
+                        <option value="">All Urgencies</option>
+                        {% for value, label in urgency_choices %}
+                            <option value="{{ value }}" {% if current_filters.urgency == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label">Assigned To</label>
+                    <select name="assigned_to" class="form-select">
+                        <option value="">All Engineers</option>
+                        {% for engineer in engineers %}
+                            <option value="{{ engineer.user.id }}" {% if current_filters.assigned_to == engineer.user.id|stringformat:"s" %}selected{% endif %}>
+                                {{ engineer.user.get_full_name|default:engineer.user.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Search complaints..." 
+                           value="{{ current_filters.search }}">
+                </div>
+                
+                <div class="col-lg-1 col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-outline-secondary w-100 clear-filters" title="Clear">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Quick Filter Buttons -->
+            <div class="mt-3">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-danger quick-filter" data-filter="urgency" data-value="critical">
+                        <i class="fas fa-fire me-1"></i>Critical
+                    </button>
+                    <button type="button" class="btn btn-outline-warning quick-filter" data-filter="status" data-value="1">
+                        <i class="fas fa-exclamation-circle me-1"></i>Unassigned
+                    </button>
+                    <button type="button" class="btn btn-outline-primary quick-filter" data-filter="assigned_to" data-value="{{ user.id }}">
+                        <i class="fas fa-user me-1"></i>My Assignments
+                    </button>
+                    <button type="button" class="btn btn-outline-info quick-filter" data-filter="status" data-value="2">
+                        <i class="fas fa-cog me-1"></i>In Progress
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {% if complaints %}
+    <!-- Engineering Complaints Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="complaintsTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th width="5%">
+                                <input type="checkbox" id="selectAll" class="form-check-input">
+                            </th>
+                            <th width="8%">ID</th>
+                            <th width="25%">Title & Description</th>
+                            <th width="12%">User</th>
+                            <th width="10%">Type</th>
+                            <th width="10%">Status</th>
+                            <th width="8%">Urgency</th>
+                            <th width="12%">Assigned To</th>
+                            <th width="10%">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for complaint in complaints %}
+                        <tr class="complaint-row" data-id="{{ complaint.id }}">
+                            <td>
+                                <input type="checkbox" class="form-check-input complaint-checkbox" value="{{ complaint.id }}">
+                                <div class="urgency-indicator urgency-{{ complaint.urgency }}"></div>
+                            </td>
+                            <td>
+                                <a href="{% url 'complaints:detail' complaint.pk %}" class="text-decoration-none fw-bold">
+                                    #{{ complaint.id }}
+                                </a>
+                            </td>
+                            <td>
+                                <div class="complaint-title">
+                                    <strong>{{ complaint.title|truncatechars:40 }}</strong>
+                                </div>
+                                <small class="text-muted">{{ complaint.description|truncatechars:60 }}</small>
+                                {% if complaint.attachments.count %}
+                                <br><small class="text-info">
+                                    <i class="fas fa-paperclip me-1"></i>{{ complaint.attachments.count }} file(s)
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>{{ complaint.user.get_full_name|default:complaint.user.username }}</div>
+                                <small class="text-muted">{{ complaint.user.email }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark">{{ complaint.type.name }}</span>
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if complaint.status.name == 'Open' %}bg-warning
+                                    {% elif complaint.status.name == 'In Progress' %}bg-info
+                                    {% elif complaint.status.is_closed %}bg-success
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ complaint.status.name }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if complaint.urgency == 'critical' %}bg-danger
+                                    {% elif complaint.urgency == 'high' %}bg-warning
+                                    {% elif complaint.urgency == 'medium' %}bg-info
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ complaint.get_urgency_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if complaint.assigned_to %}
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-user-check text-success me-1"></i>
+                                        <small>{{ complaint.assigned_to.get_full_name|default:complaint.assigned_to.username|truncatechars:15 }}</small>
+                                    </div>
+                                {% else %}
+                                    <button class="btn btn-sm btn-outline-primary assign-btn" data-complaint-id="{{ complaint.id }}">
+                                        <i class="fas fa-user-plus me-1"></i>Assign
+                                    </button>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'complaints:detail' complaint.pk %}" class="btn btn-outline-primary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'complaints:edit' complaint.pk %}" class="btn btn-outline-secondary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if not complaint.status.is_closed %}
+                                    <button class="btn btn-outline-success resolve-btn" data-complaint-id="{{ complaint.id }}" title="Mark Resolved">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Complaints pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">Previous</a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+            </li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-5">
+        <i class="fas fa-tools fa-4x text-muted mb-3"></i>
+        <h3 class="text-muted">No Complaints Found</h3>
+        <p class="text-muted lead">
+            {% if current_filters.search or current_filters.status or current_filters.type %}
+                No complaints match your current filters.
+            {% else %}
+                All complaints have been handled. Great work!
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Bulk Assignment Modal -->
+<div class="modal fade" id="assignmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Assignment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bulkAssignForm">
+                    <div class="mb-3">
+                        <label class="form-label">Assign to Engineer</label>
+                        <select name="engineer_id" class="form-select" required>
+                            <option value="">Select Engineer</option>
+                            {% for engineer in engineers %}
+                                <option value="{{ engineer.user.id }}">
+                                    {{ engineer.user.get_full_name|default:engineer.user.username }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="selected-complaints">
+                        <p class="mb-2">Selected Complaints: <span id="selectedCount">0</span></p>
+                        <div id="selectedList" class="small text-muted"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmAssignment">Assign Selected</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filter functionality
+    const filterInputs = document.querySelectorAll('.filter-form select, .filter-form input');
+    filterInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            if (input.type !== 'text') {
+                document.querySelector('.filter-form').submit();
+            }
+        });
+    });
+
+    // Search input with debounce
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                document.querySelector('.filter-form').submit();
+            }, 500);
+        });
+    }
+
+    // Quick filters
+    const quickFilterButtons = document.querySelectorAll('.quick-filter');
+    quickFilterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            const value = this.dataset.value;
+            const select = document.querySelector(`select[name="${filter}"]`);
+            
+            if (select) {
+                select.value = value;
+                document.querySelector('.filter-form').submit();
+            }
+        });
+    });
+
+    // Clear filters
+    document.querySelector('.clear-filters').addEventListener('click', function() {
+        const form = document.querySelector('.filter-form');
+        const inputs = form.querySelectorAll('select, input[type="text"]');
+        
+        inputs.forEach(input => {
+            if (input.tagName === 'SELECT') {
+                input.selectedIndex = 0;
+            } else {
+                input.value = '';
+            }
+        });
+        
+        form.submit();
+    });
+
+    // Select all functionality
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const complaintCheckboxes = document.querySelectorAll('.complaint-checkbox');
+    
+    selectAllCheckbox.addEventListener('change', function() {
+        complaintCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateSelectedCount();
+    });
+
+    complaintCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+        const selectedCheckboxes = document.querySelectorAll('.complaint-checkbox:checked');
+        const count = selectedCheckboxes.length;
+        
+        document.getElementById('selectedCount').textContent = count;
+        
+        // Update selected list
+        const selectedList = document.getElementById('selectedList');
+        if (count > 0) {
+            const ids = Array.from(selectedCheckboxes).map(cb => '#' + cb.value).join(', ');
+            selectedList.textContent = ids;
+        } else {
+            selectedList.textContent = 'None selected';
+        }
+    }
+
+    // Individual assign buttons
+    const assignButtons = document.querySelectorAll('.assign-btn');
+    assignButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const complaintId = this.dataset.complaintId;
+            // You can implement individual assignment logic here
+            console.log('Assign complaint:', complaintId);
+        });
+    });
+
+    // Resolve buttons
+    const resolveButtons = document.querySelectorAll('.resolve-btn');
+    resolveButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const complaintId = this.dataset.complaintId;
+            if (confirm('Mark this complaint as resolved?')) {
+                // Implementation for resolving complaint
+                console.log('Resolve complaint:', complaintId);
+            }
+        });
+    });
+
+    // Bulk assignment
+    document.getElementById('confirmAssignment').addEventListener('click', function() {
+        const selectedCheckboxes = document.querySelectorAll('.complaint-checkbox:checked');
+        const engineerId = document.querySelector('select[name="engineer_id"]').value;
+        
+        if (selectedCheckboxes.length === 0) {
+            alert('Please select at least one complaint.');
+            return;
+        }
+        
+        if (!engineerId) {
+            alert('Please select an engineer.');
+            return;
+        }
+        
+        // Implementation for bulk assignment
+        const complaintIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        console.log('Bulk assign complaints:', complaintIds, 'to engineer:', engineerId);
+        
+        // Close modal
+        bootstrap.Modal.getInstance(document.getElementById('assignmentModal')).hide();
+    });
+});
+
+// Export function
+function exportTableAsCSV(tableId, filename) {
+    const table = document.getElementById(tableId);
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('td, th');
+        const rowData = [];
+        cols.forEach((col, index) => {
+            if (index > 0) { // Skip checkbox column
+                rowData.push('"' + col.textContent.trim().replace(/"/g, '""') + '"');
+            }
+        });
+        csv.push(rowData.join(','));
+    });
+    
+    const csvString = csv.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

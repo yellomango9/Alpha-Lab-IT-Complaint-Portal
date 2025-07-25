@@ -126,9 +126,6 @@ function initializeSearch() {
  * Perform search operation
  */
 function performSearch(query) {
-    const searchResults = document.querySelector('.search-results');
-    if (!searchResults) return;
-    
     // Show loading state
     showLoadingSpinner();
     
@@ -140,13 +137,8 @@ function performSearch(query) {
         url.searchParams.delete('search');
     }
     
-    // Update browser history
-    window.history.pushState({}, '', url);
-    
-    // Reload page with new search parameter
-    setTimeout(() => {
-        window.location.reload();
-    }, 100);
+    // Update browser history and reload
+    window.location.href = url.toString();
 }
 
 /**
