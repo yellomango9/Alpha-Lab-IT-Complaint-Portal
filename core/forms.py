@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import UserProfile, Department, Role
+from .models import UserProfile, Department
 
 
 class UserProfileForm(forms.ModelForm):
@@ -25,15 +25,12 @@ class UserProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
         fields = [
-            'department', 'phone_number', 'employee_id', 'avatar', 
-            'bio', 'email_notifications'
+            'department', 'phone_number', 'main_portal_id', 'email_notifications'
         ]
         widgets = {
             'department': forms.Select(attrs={'class': 'form-select'}),
             'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'employee_id': forms.TextInput(attrs={'class': 'form-control'}),
-            'avatar': forms.FileInput(attrs={'class': 'form-control'}),
-            'bio': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'main_portal_id': forms.TextInput(attrs={'class': 'form-control'}),
             'email_notifications': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
     
@@ -82,10 +79,11 @@ class UserRegistrationForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-select'}),
         required=True
     )
-    employee_id = forms.CharField(
-        max_length=50,
+    main_portal_id = forms.CharField(
+        max_length=100,
         widget=forms.TextInput(attrs={'class': 'form-control'}),
-        required=False
+        required=False,
+        help_text="Unique ID from the main Alpha Labs portal for SSO"
     )
     
     class Meta:
@@ -107,11 +105,11 @@ class UserRegistrationForm(forms.ModelForm):
         
         return password2
     
-    def clean_employee_id(self):
-        employee_id = self.cleaned_data.get('employee_id')
-        if employee_id and UserProfile.objects.filter(employee_id=employee_id).exists():
-            raise forms.ValidationError("This employee ID is already in use.")
-        return employee_id
+    def clean_main_portal_id(self):
+        main_portal_id = self.cleaned_data.get('main_portal_id')
+        if main_portal_id and UserProfile.objects.filter(main_portal_id=main_portal_id).exists():
+            raise forms.ValidationError("This portal ID is already in use.")
+        return main_portal_id
     
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -123,7 +121,7 @@ class UserRegistrationForm(forms.ModelForm):
             UserProfile.objects.create(
                 user=user,
                 department=self.cleaned_data['department'],
-                employee_id=self.cleaned_data.get('employee_id', '')
+                main_portal_id=self.cleaned_data.get('main_portal_id', '')
             )
         
         return user

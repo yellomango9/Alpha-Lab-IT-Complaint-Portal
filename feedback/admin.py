@@ -7,51 +7,44 @@ from .models import Feedback, FeedbackTemplate
 class FeedbackAdmin(admin.ModelAdmin):
     """Admin configuration for Feedback model."""
     list_display = [
-        'complaint', 'user', 'rating_display', 'rating', 
-        'is_anonymous', 'is_public', 'submitted_at'
+        'complaint', 'user', 'template', 'rating_display', 'submitted_at'
     ]
     list_filter = [
-        'rating', 'is_anonymous', 'is_public', 'submitted_at',
-        'would_recommend'
+        'template', 'submitted_at'
     ]
     search_fields = [
-        'complaint__title', 'user__username', 'comment', 'suggestions'
+        'complaint__title', 'user__username', 'comment'
     ]
     ordering = ['-submitted_at']
     date_hierarchy = 'submitted_at'
     
     fieldsets = (
         ('Feedback Information', {
-            'fields': ('complaint', 'user', 'rating')
+            'fields': ('complaint', 'user', 'template')
         }),
-        ('Detailed Ratings', {
-            'fields': ('resolution_quality', 'response_time', 'staff_helpfulness'),
-            'classes': ('collapse',)
-        }),
-        ('Comments', {
-            'fields': ('comment', 'suggestions')
-        }),
-        ('Additional Questions', {
-            'fields': ('would_recommend',),
-            'classes': ('collapse',)
-        }),
-        ('Privacy Settings', {
-            'fields': ('is_anonymous', 'is_public')
+        ('Responses', {
+            'fields': ('responses', 'comment')
         }),
         ('Timestamps', {
-            'fields': ('submitted_at', 'updated_at'),
+            'fields': ('submitted_at',),
             'classes': ('collapse',)
         }),
     )
-    readonly_fields = ['submitted_at', 'updated_at']
+    readonly_fields = ['submitted_at']
     
     def rating_display(self, obj):
-        stars = "★" * obj.rating + "☆" * (5 - obj.rating)
+        """Display overall rating as stars."""
+        rating = obj.overall_rating
+        if rating is None:
+            return "No rating"
+        
+        full_stars = int(rating)
+        stars = "★" * full_stars + "☆" * (5 - full_stars)
         return format_html('<span style="color: gold; font-size: 16px;">{}</span>', stars)
-    rating_display.short_description = 'Rating'
+    rating_display.short_description = 'Overall Rating'
     
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('complaint', 'user')
+        return super().get_queryset(request).select_related('complaint', 'user', 'template')
 
 
 @admin.register(FeedbackTemplate)
@@ -68,6 +61,6 @@ class FeedbackTemplateAdmin(admin.ModelAdmin):
         }),
         ('Questions', {
             'fields': ('questions',),
-            'description': 'JSON format: [{"question": "...", "type": "rating|text|boolean"}]'
+            'description': 'JSON format: [{"key": "field_name", "label": "Question text", "type": "rating|text|boolean|textarea", "required": true/false}]'
         }),
     )

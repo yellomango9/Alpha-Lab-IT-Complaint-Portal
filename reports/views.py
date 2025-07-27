@@ -18,7 +18,7 @@ from django.db.models import Count, Avg, Q, F
 from django.utils import timezone
 from django.core.paginator import Paginator
 
-from complaints.models import Complaint, ComplaintMetrics, Status, ComplaintType
+from complaints.models import Complaint, Status, ComplaintType
 from core.models import Department, UserProfile
 from feedback.models import Feedback
 from .models import ReportTemplate, GeneratedReport
@@ -29,12 +29,14 @@ class AdminRequiredMixin(UserPassesTestMixin):
     """Mixin to ensure only admins and engineers can access certain views."""
     
     def test_func(self):
-        return (
-            self.request.user.is_authenticated and 
-            (self.request.user.is_staff or 
-             (hasattr(self.request.user, 'profile') and 
-              (self.request.user.profile.is_admin or self.request.user.profile.is_engineer)))
-        )
+        """Check if user has access to reports (Admin, AMC Admin, or Engineer groups)."""
+        if not self.request.user.is_authenticated:
+            return False
+        
+        # Check if user is in allowed groups
+        allowed_groups = ['Admin', 'AMC Admin', 'Engineer']
+        user_groups = self.request.user.groups.values_list('name', flat=True)
+        return any(group in allowed_groups for group in user_groups)
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
@@ -44,14 +46,17 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     """
     
     def get_template_names(self):
-        """Return template based on user role."""
+        """Return template based on user group."""
         user = self.request.user
-        if hasattr(user, 'profile'):
-            if user.profile.is_admin:
-                return ['reports/admin_dashboard.html']
-            elif user.profile.is_engineer:
-                return ['reports/engineer_dashboard.html']
-        return ['reports/user_dashboard.html']
+        user_groups = user.groups.values_list('name', flat=True)
+        
+        if 'Admin' in user_groups or 'AMC Admin' in user_groups:
+            return ['reports/admin_dashboard.html']
+        elif 'Engineer' in user_groups:
+            return ['reports/engineer_dashboard.html']
+        
+        # Fallback (shouldn't happen since only IT staff can log in)
+        return ['reports/engineer_dashboard.html']
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -61,43 +66,45 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=30)
         
-        # Role-based metrics
-        if hasattr(user, 'profile'):
-            if user.profile.is_admin:
-                # Admin sees everything
-                context.update({
-                    'total_complaints': self.get_total_complaints(),
-                    'open_complaints': self.get_open_complaints(),
-                    'resolved_today': self.get_resolved_today(),
-                    'avg_resolution_time': self.get_avg_resolution_time(),
-                    'recent_complaints': self.get_recent_complaints(),
-                    'status_distribution': self.get_status_distribution(),
-                    'department_stats': self.get_department_stats(),
-                    'monthly_trends': self.get_monthly_trends(),
-                    'urgency_breakdown': self.get_urgency_breakdown(),
-                    'engineer_performance': self.get_engineer_performance(),
-                    'system_health': self.get_system_health(),
-                })
-            elif user.profile.is_engineer:
-                # Engineer sees all complaints but with focus on assignments
-                context.update({
-                    'total_complaints': self.get_total_complaints(),
-                    'my_assignments': self.get_my_assignments(user),
-                    'open_complaints': self.get_open_complaints(),
-                    'resolved_today': self.get_resolved_today(),
-                    'avg_resolution_time': self.get_avg_resolution_time(),
-                    'recent_complaints': self.get_recent_complaints(),
-                    'status_distribution': self.get_status_distribution(),
-                    'urgency_breakdown': self.get_urgency_breakdown(),
-                    'my_performance': self.get_my_performance(user),
-                })
-        else:
-            # Regular user sees only their data
+        # Group-based metrics
+        user_groups = user.groups.values_list('name', flat=True)
+        
+        if 'Admin' in user_groups or 'AMC Admin' in user_groups:
+            # Admin sees everything
             context.update({
-                'my_complaints': self.get_my_complaints(user),
-                'my_open_complaints': self.get_my_open_complaints(user),
-                'my_resolved_complaints': self.get_my_resolved_complaints(user),
-                'recent_complaints': self.get_my_recent_complaints(user),
+                'total_complaints': self.get_total_complaints(),
+                'open_complaints': self.get_open_complaints(),
+                'resolved_today': self.get_resolved_today(),
+                'avg_resolution_time': self.get_avg_resolution_time(),
+                'recent_complaints': self.get_recent_complaints(),
+                'status_distribution': self.get_status_distribution(),
+                'department_stats': self.get_department_stats(),
+                'monthly_trends': self.get_monthly_trends(),
+                'urgency_breakdown': self.get_urgency_breakdown(),
+                'engineer_performance': self.get_engineer_performance(),
+                'system_health': self.get_system_health(),
+            })
+        elif 'Engineer' in user_groups:
+            # Engineer sees all complaints but with focus on assignments
+            context.update({
+                'total_complaints': self.get_total_complaints(),
+                'my_assignments': self.get_my_assignments(user),
+                'open_complaints': self.get_open_complaints(),
+                'resolved_today': self.get_resolved_today(),
+                'avg_resolution_time': self.get_avg_resolution_time(),
+                'recent_complaints': self.get_recent_complaints(),
+                'status_distribution': self.get_status_distribution(),
+                'urgency_breakdown': self.get_urgency_breakdown(),
+                'my_performance': self.get_my_performance(user),
+            })
+        else:
+            # Fallback - shouldn't happen since only IT staff can log in
+            # Redirect to engineer view as default
+            context.update({
+                'total_complaints': self.get_total_complaints(),
+                'my_assignments': self.get_my_assignments(user),
+                'open_complaints': self.get_open_complaints(),
+                'recent_complaints': self.get_recent_complaints(),
             })
         
         return context
@@ -144,8 +151,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         user = self.request.user
         queryset = Complaint.objects.select_related('user', 'type', 'status')
         
-        # Filter based on user role
-        if hasattr(user, 'profile') and user.profile.is_engineer:
+        # Filter based on user group
+        user_groups = user.groups.values_list('name', flat=True)
+        if 'Engineer' in user_groups or 'Admin' in user_groups or 'AMC Admin' in user_groups:
             # Engineers see all recent complaints
             queryset = queryset.all()
         else:
@@ -267,7 +275,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     
     def get_engineer_performance(self):
         """Get performance metrics for all engineers."""
-        engineers = UserProfile.objects.filter(role__name__icontains='engineer').select_related('user')
+        # Get engineers from Django Groups
+        from django.contrib.auth.models import Group
+        engineer_groups = Group.objects.filter(name__icontains='engineer')
+        engineers = UserProfile.objects.filter(
+            user__groups__in=engineer_groups
+        ).select_related('user').distinct()
         performance_data = []
         
         for engineer in engineers:
@@ -373,9 +386,12 @@ def generate_report(request):
     Generate a new report based on user parameters.
     Supports different report types and export formats.
     """
-    if not (request.user.is_staff or 
-            (hasattr(request.user, 'profile') and 
-             (request.user.profile.is_admin or request.user.profile.is_engineer))):
+    # Check if user has access (Admin, AMC Admin, or Engineer groups)
+    allowed_groups = ['Admin', 'AMC Admin', 'Engineer']
+    user_groups = request.user.groups.values_list('name', flat=True)
+    has_access = any(group in allowed_groups for group in user_groups)
+    
+    if not has_access:
         return HttpResponseForbidden()
     
     if request.method == 'POST':

@@ -1,0 +1,87 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .portal-access-warning {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 4px;
+        padding: 15px;
+        margin: 15px 0;
+        color: #856404;
+    }
+    .portal-access-warning h4 {
+        margin-top: 0;
+        color: #856404;
+    }
+    .group-info {
+        background: #d1ecf1;
+        border: 1px solid #bee5eb;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 10px 0;
+        color: #0c5460;
+    }
+    .group-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        margin: 2px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    .group-admin { background: #d4edda; color: #155724; }
+    .group-amc-admin { background: #cce7ff; color: #004085; }
+    .group-engineer { background: #fff3cd; color: #856404; }
+    .group-none { background: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block field_sets %}
+    {% if original %}
+        <div class="portal-access-warning">
+            <h4>🔐 Portal Access Control</h4>
+            <p><strong>Current Status:</strong> 
+                {% if original.groups.all %}
+                    {% for group in original.groups.all %}
+                        {% if group.name == "Admin" %}
+                            <span class="group-badge group-admin">🔑 {{ group.name }}</span>
+                        {% elif group.name == "AMC Admin" %}
+                            <span class="group-badge group-amc-admin">🔧 {{ group.name }}</span>
+                        {% elif group.name == "Engineer" %}
+                            <span class="group-badge group-engineer">⚙️ {{ group.name }}</span>
+                        {% else %}
+                            <span class="group-badge">{{ group.name }}</span>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <span class="group-badge group-none">🚫 No Portal Access</span>
+                {% endif %}
+            </p>
+            <div class="group-info">
+                <strong>Required for Portal Access:</strong><br>
+                • <strong>Admin</strong> - Full system access<br>
+                • <strong>AMC Admin</strong> - Administrative access<br>
+                • <strong>Engineer</strong> - Engineering access<br>
+                <br>
+                <em>Users without these groups cannot log into the portal.</em>
+            </div>
+        </div>
+    {% else %}
+        <div class="portal-access-warning">
+            <h4>🔐 Portal Access Control</h4>
+            <div class="group-info">
+                <strong>Remember to assign groups for portal access:</strong><br>
+                • <strong>Admin</strong> - Full system access<br>
+                • <strong>AMC Admin</strong> - Administrative access<br>
+                • <strong>Engineer</strong> - Engineering access<br>
+                <br>
+                <em>Users without these groups cannot log into the portal.</em>
+            </div>
+        </div>
+    {% endif %}
+
+    {{ block.super }}
+{% endblock %}

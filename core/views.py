@@ -2,30 +2,58 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.views.generic import TemplateView, UpdateView
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import UserProfile, Department, Role
+from .models import UserProfile, Department
 from .forms import UserProfileForm
 from complaints.models import Complaint, Status
 
 
 class CustomLoginView(LoginView):
-    """Custom login view with better error handling."""
+    """
+    Custom login view with group-based access control.
+    Only allows users from Admin, AMC Admin, and Engineer groups to log in.
+    """
     template_name = 'registration/login.html'
     redirect_authenticated_user = True
     
-    def get_success_url(self):
-        """Redirect based on user role after successful login."""
-        user = self.request.user
+    # Define allowed groups for login
+    ALLOWED_GROUPS = ['Admin', 'AMC Admin', 'Engineer']
+    
+    def form_valid(self, form):
+        """Validate user credentials and check group membership."""
+        user = form.get_user()
+        
+        # Check if user belongs to allowed groups
+        user_groups = user.groups.values_list('name', flat=True)
+        has_allowed_group = any(group in self.ALLOWED_GROUPS for group in user_groups)
+        
+        if not has_allowed_group:
+            # User exists but doesn't have required permissions
+            messages.error(
+                self.request, 
+                'Access denied. This portal is restricted to IT staff only. '
+                'Please contact your administrator if you believe this is an error.'
+            )
+            return self.form_invalid(form)
         
         # Create profile if it doesn't exist
         profile, created = UserProfile.objects.get_or_create(user=user)
         
+        messages.success(
+            self.request, 
+            f'Welcome back, {user.get_full_name() or user.username}!'
+        )
+        
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        """Redirect to dashboard after successful login."""
         return '/dashboard/'
     
     def form_invalid(self, form):
@@ -35,11 +63,24 @@ class CustomLoginView(LoginView):
         if username:
             try:
                 user = User.objects.get(username=username)
-                # User exists but password is wrong
-                messages.error(self.request, 'Invalid password. Please try again.')
+                # Check if user exists but doesn't have required groups
+                user_groups = user.groups.values_list('name', flat=True)
+                has_allowed_group = any(group in self.ALLOWED_GROUPS for group in user_groups)
+                
+                if not has_allowed_group:
+                    messages.error(
+                        self.request, 
+                        'Access denied. This portal is restricted to IT staff only.'
+                    )
+                else:
+                    # User exists and has correct groups, so password must be wrong
+                    messages.error(self.request, 'Invalid password. Please try again.')
             except User.DoesNotExist:
                 # User doesn't exist
-                messages.error(self.request, f'User "{username}" not found. Please check your username.')
+                messages.error(
+                    self.request, 
+                    'Invalid username or password. Please check your credentials.'
+                )
         else:
             messages.error(self.request, 'Please enter both username and password.')
         

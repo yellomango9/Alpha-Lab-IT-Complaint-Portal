@@ -118,15 +118,11 @@ class ComplaintUpdateForm(forms.ModelForm):
         required=False,
         empty_label="Unassigned"
     )
-    resolution_notes = forms.CharField(
-        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-        required=False,
-        help_text="Notes about the resolution or current progress"
-    )
+
     
     class Meta:
         model = Complaint
-        fields = ['type', 'title', 'description', 'urgency', 'location', 'contact_number', 'status', 'assigned_to', 'resolution_notes']
+        fields = ['type', 'title', 'description', 'urgency', 'location', 'contact_number', 'status', 'assigned_to']
         widgets = {
             'type': forms.Select(attrs={'class': 'form-select'}),
             'title': forms.TextInput(attrs={'class': 'form-control'}),
@@ -150,9 +146,11 @@ class ComplaintUpdateForm(forms.ModelForm):
         self.fields['type'].queryset = ComplaintType.objects.filter(is_active=True)
         
         # Populate engineers for assignment
+        from django.contrib.auth.models import Group
+        engineer_group = Group.objects.filter(name__icontains='engineer').first()
         engineer_profiles = UserProfile.objects.filter(
-            role__name__icontains='engineer'
-        ).select_related('user')
+            user__groups=engineer_group
+        ).select_related('user') if engineer_group else UserProfile.objects.none()
         
         self.fields['assigned_to'].queryset = User.objects.filter(
             id__in=[p.user.id for p in engineer_profiles]

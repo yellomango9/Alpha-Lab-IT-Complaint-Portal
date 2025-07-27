@@ -41,7 +41,7 @@ class ComplaintListView(LoginRequiredMixin, ListView):
             elif user.profile.is_engineer:
                 # Engineers see all complaints they can work on
                 pass
-            elif user.profile.role and user.profile.role.name.lower() == 'amc_admin':
+            elif user.groups.filter(name='AMC Admin').exists():
                 # AMC Admins see only AMC-related complaints
                 queryset = queryset.filter(
                     Q(type__name__icontains='hardware') | 

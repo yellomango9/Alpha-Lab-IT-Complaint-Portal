@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Complaint, ComplaintType, Status, FileAttachment
+from .models import Complaint, ComplaintType, Status, FileAttachment, Remark
 
 
 class FileAttachmentInline(admin.TabularInline):
@@ -12,6 +12,14 @@ class FileAttachmentInline(admin.TabularInline):
     def file_size_formatted(self, obj):
         return obj.file_size_formatted if obj else '-'
     file_size_formatted.short_description = 'File Size'
+
+
+class RemarkInline(admin.TabularInline):
+    """Inline admin for remarks."""
+    model = Remark
+    extra = 0
+    readonly_fields = ['created_at']
+    fields = ['user', 'text', 'is_internal_note', 'created_at']
 
 
 @admin.register(Complaint)
@@ -31,7 +39,7 @@ class ComplaintAdmin(admin.ModelAdmin):
     ]
     ordering = ['-created_at']
     date_hierarchy = 'created_at'
-    inlines = [FileAttachmentInline]
+    inlines = [FileAttachmentInline, RemarkInline]
     
     fieldsets = (
         ('Basic Information', {
@@ -41,7 +49,7 @@ class ComplaintAdmin(admin.ModelAdmin):
             'fields': ('title', 'description', 'urgency', 'location', 'contact_number')
         }),
         ('Resolution', {
-            'fields': ('resolution_notes', 'resolved_at'),
+            'fields': ('resolved_at',),
             'classes': ('collapse',)
         }),
         ('Timestamps', {
@@ -118,4 +126,27 @@ class FileAttachmentAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
             'complaint', 'uploaded_by'
+        )
+
+
+@admin.register(Remark)
+class RemarkAdmin(admin.ModelAdmin):
+    """Admin configuration for Remark model."""
+    list_display = [
+        'complaint', 'user', 'text_preview', 'is_internal_note', 'created_at'
+    ]
+    list_filter = ['is_internal_note', 'created_at']
+    search_fields = [
+        'text', 'complaint__title', 'user__username'
+    ]
+    ordering = ['-created_at']
+    readonly_fields = ['created_at']
+    
+    def text_preview(self, obj):
+        return obj.text[:50] + "..." if len(obj.text) > 50 else obj.text
+    text_preview.short_description = 'Text Preview'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'complaint', 'user'
         )

@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.db.models import Avg, Count
 from datetime import datetime, timedelta
 
-from .models import Complaint, Status, StatusHistory, ComplaintMetrics
+from .models import Complaint, Status, StatusHistory
 from core.models import UserProfile
 
 
@@ -66,8 +66,7 @@ def complaint_created(sender, instance, created, **kwargs):
         # Notify IT staff about new complaint
         notify_it_staff_new_complaint(instance)
         
-        # Update metrics
-        update_daily_metrics(instance.created_at.date())
+        # Note: Metrics calculation removed - will be implemented as scheduled task
     
     else:
         # Handle status changes for existing complaints
@@ -81,8 +80,7 @@ def complaint_created(sender, instance, created, **kwargs):
                 notes=getattr(instance, '_status_change_notes', '')
             )
             
-            # Update metrics
-            update_daily_metrics(timezone.now().date())
+            # Note: Metrics calculation removed - will be implemented as scheduled task
             
             # Clean up temporary attributes
             delattr(instance, '_status_changed')
@@ -162,11 +160,13 @@ def notify_it_staff_new_complaint(complaint):
     """Notify IT staff about new complaints."""
     try:
         # Get IT engineers and managers
+        from django.contrib.auth.models import Group
+        engineer_groups = Group.objects.filter(name__icontains='engineer')
         it_staff = UserProfile.objects.filter(
-            role__name__icontains='engineer',
+            user__groups__in=engineer_groups,
             email_notifications=True,
             user__email__isnull=False
-        ).exclude(user__email='')
+        ).exclude(user__email='').distinct()
         
         if not it_staff.exists():
             return
@@ -241,73 +241,5 @@ def send_assignment_notification(complaint):
         print(f"Error sending assignment notification: {e}")
 
 
-def update_daily_metrics(date):
-    """
-    Update or create daily metrics for the given date.
-    Calculates complaint counts, resolution times, and breakdowns.
-    """
-    try:
-        # Get or create metrics for the date
-        metrics, created = ComplaintMetrics.objects.get_or_create(
-            date=date,
-            defaults={
-                'total_complaints': 0,
-                'new_complaints': 0,
-                'resolved_complaints': 0,
-                'closed_complaints': 0,
-            }
-        )
-        
-        # Calculate metrics for the date
-        date_complaints = Complaint.objects.filter(created_at__date=date)
-        resolved_complaints = Complaint.objects.filter(
-            resolved_at__date=date,
-            status__is_closed=True
-        )
-        
-        # Basic counts
-        metrics.total_complaints = Complaint.objects.filter(created_at__date__lte=date).count()
-        metrics.new_complaints = date_complaints.count()
-        metrics.resolved_complaints = resolved_complaints.count()
-        metrics.closed_complaints = resolved_complaints.count()
-        
-        # Calculate average resolution time
-        resolved_with_times = resolved_complaints.exclude(resolved_at__isnull=True)
-        if resolved_with_times.exists():
-            total_hours = 0
-            count = 0
-            for complaint in resolved_with_times:
-                if complaint.resolved_at and complaint.created_at:
-                    hours = (complaint.resolved_at - complaint.created_at).total_seconds() / 3600
-                    total_hours += hours
-                    count += 1
-            
-            if count > 0:
-                metrics.avg_resolution_time_hours = total_hours / count
-        
-        # Department breakdown
-        dept_stats = {}
-        for complaint in date_complaints.select_related('user__profile__department'):
-            dept_name = complaint.user.profile.department.name if (
-                complaint.user.profile and complaint.user.profile.department
-            ) else 'Unknown'
-            dept_stats[dept_name] = dept_stats.get(dept_name, 0) + 1
-        metrics.department_stats = dept_stats
-        
-        # Type breakdown
-        type_stats = {}
-        for complaint in date_complaints.select_related('type'):
-            type_name = complaint.type.name if complaint.type else 'Unknown'
-            type_stats[type_name] = type_stats.get(type_name, 0) + 1
-        metrics.type_stats = type_stats
-        
-        # Urgency breakdown
-        urgency_stats = {}
-        for complaint in date_complaints:
-            urgency_stats[complaint.urgency] = urgency_stats.get(complaint.urgency, 0) + 1
-        metrics.urgency_stats = urgency_stats
-        
-        metrics.save()
-        
-    except Exception as e:
-        print(f"Error updating daily metrics: {e}")
+# Note: Daily metrics calculation function removed
+# This functionality will be reimplemented as a scheduled task to avoid performance bottlenecks

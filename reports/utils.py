@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from django.db.models import Count, Avg, Q, F
 from django.utils import timezone
 
-from complaints.models import Complaint, ComplaintMetrics, Status, ComplaintType
+from complaints.models import Complaint, Status, ComplaintType
 from core.models import Department
 from feedback.models import Feedback
 

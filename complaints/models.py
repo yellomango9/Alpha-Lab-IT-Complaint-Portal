@@ -93,7 +93,6 @@ class Complaint(models.Model):
     contact_number = models.CharField(max_length=20, blank=True, help_text="Alternative contact number")
     
     # Resolution
-    resolution_notes = models.TextField(blank=True, help_text="Notes about how the issue was resolved")
     resolved_at = models.DateTimeField(null=True, blank=True)
     
     # Timestamps
@@ -122,14 +121,12 @@ class Complaint(models.Model):
         end_date = self.resolved_at or timezone.now()
         return (end_date - self.created_at).days
 
-    def mark_resolved(self, resolution_notes="", resolved_by=None):
+    def mark_resolved(self, resolved_by=None):
         """Mark complaint as resolved."""
         resolved_status = Status.objects.filter(is_closed=True).first()
         if resolved_status:
             self.status = resolved_status
             self.resolved_at = timezone.now()
-            if resolution_notes:
-                self.resolution_notes = resolution_notes
             self.save()
 
 
@@ -171,6 +168,60 @@ class FileAttachment(models.Model):
             if os.path.isfile(self.file.path):
                 os.remove(self.file.path)
         super().delete(*args, **kwargs)
+
+
+class Remark(models.Model):
+    """
+    Stores a single comment or action log in a complaint's conversation thread.
+    
+    This model enables threaded conversations on complaints, allowing users and IT staff
+    to communicate about the complaint resolution process. Remarks can be either public
+    (visible to the complaint submitter) or internal notes (visible only to IT staff).
+    """
+    complaint = models.ForeignKey(
+        'Complaint', 
+        on_delete=models.CASCADE, 
+        related_name='remarks',
+        help_text="The complaint this remark belongs to"
+    )
+    user = models.ForeignKey(
+        'auth.User', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="The user who made the remark"
+    )
+    text = models.TextField(
+        help_text="The content of the remark"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp when the remark was created"
+    )
+    is_internal_note = models.BooleanField(
+        default=False,
+        help_text="True if this note is only visible to internal IT staff"
+    )
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Remark'
+        verbose_name_plural = 'Remarks'
+
+    def __str__(self):
+        user_name = self.user.get_full_name() or self.user.username if self.user else "System"
+        note_type = " (Internal)" if self.is_internal_note else ""
+        return f"Remark by {user_name} on Complaint #{self.complaint.id}{note_type}"
+
+    @property
+    def is_system_remark(self):
+        """
+        Check if this is a system-generated remark.
+        
+        Returns:
+            bool: True if the remark was created by the system (no user)
+        """
+        return self.user is None
 
 
 class StatusHistory(models.Model):
@@ -218,47 +269,4 @@ class StatusHistory(models.Model):
         return f"Complaint #{self.complaint.id}: {self.previous_status} → {self.new_status}"
 
 
-class ComplaintMetrics(models.Model):
-    """
-    Model to store pre-calculated metrics for reporting performance.
-    Updated via signals when complaints are created/updated.
-    """
-    date = models.DateField(unique=True, help_text="Date for these metrics")
-    
-    # Daily counts
-    total_complaints = models.PositiveIntegerField(default=0)
-    new_complaints = models.PositiveIntegerField(default=0)
-    resolved_complaints = models.PositiveIntegerField(default=0)
-    closed_complaints = models.PositiveIntegerField(default=0)
-    
-    # Resolution metrics
-    avg_resolution_time_hours = models.FloatField(
-        null=True, 
-        blank=True,
-        help_text="Average time to resolve complaints in hours"
-    )
-    
-    # Department breakdown (JSON field for flexibility)
-    department_stats = models.JSONField(
-        default=dict,
-        help_text="Breakdown of complaints by department"
-    )
-    type_stats = models.JSONField(
-        default=dict,
-        help_text="Breakdown of complaints by type"
-    )
-    urgency_stats = models.JSONField(
-        default=dict,
-        help_text="Breakdown of complaints by urgency"
-    )
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        ordering = ['-date']
-        verbose_name = 'Complaint Metrics'
-        verbose_name_plural = 'Complaint Metrics'
-
-    def __str__(self):
-        return f"Metrics for {self.date}: {self.total_complaints} complaints"
