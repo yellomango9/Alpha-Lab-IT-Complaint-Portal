@@ -278,23 +278,25 @@ class ComplaintFeedback(models.Model):
     complaint = models.OneToOneField(
         Complaint, 
         on_delete=models.CASCADE, 
-        related_name='complaint_feedback',
+        related_name='user_feedback',
         help_text="The complaint this feedback is for"
     )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.CASCADE,
-        help_text="User who provided the feedback"
-    )
-    rating = models.PositiveIntegerField(
-        choices=[(i, str(i)) for i in range(1, 6)],
-        help_text="Rating from 1 (unhappy) to 5 (very happy)"
+    rating = models.IntegerField(
+        choices=[(1, '1 Star'), (2, '2 Stars'), (3, '3 Stars'), (4, '4 Stars'), (5, '5 Stars')],
+        help_text="User rating from 1 to 5 stars"
     )
     feedback_text = models.TextField(
         blank=True,
-        help_text="Optional feedback text from the user"
+        help_text="User's detailed feedback"
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_satisfied = models.BooleanField(
+        default=True,
+        help_text="Whether user is satisfied with the resolution"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the feedback was submitted"
+    )
 
     class Meta:
         verbose_name = 'Complaint Feedback'

@@ -650,13 +650,24 @@
             if (complaint.remarks && complaint.remarks.length > 0) {
                 remarksHtml = `
                     <div class="mb-3">
-                        <h6><i class="fas fa-comments me-2"></i>Remarks</h6>
+                        <h6><i class="fas fa-comments me-2"></i>Remarks & Communication</h6>
                         <div class="remarks-list">
                 `;
                 complaint.remarks.forEach(remark => {
+                    const isStaff = remark.type === 'staff';
+                    const borderColor = isStaff ? 'border-primary' : 'border-warning';
+                    const bgColor = isStaff ? 'bg-primary bg-opacity-10' : 'bg-warning bg-opacity-10';
+                    const icon = isStaff ? 'fas fa-user-tie' : 'fas fa-user';
+                    const label = isStaff ? 'Staff' : 'User';
+                    
                     remarksHtml += `
-                        <div class="p-2 mb-2 bg-light border-start border-3 border-info">
-                            <small class="text-muted">${remark.created_at} by ${remark.created_by}</small>
+                        <div class="p-3 mb-2 ${bgColor} border-start border-3 ${borderColor} rounded">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <small class="text-muted">
+                                    <i class="${icon} me-1"></i>${label}: ${remark.created_by}
+                                </small>
+                                <small class="text-muted">${remark.created_at}</small>
+                            </div>
                             <div>${remark.remark.replace(/\n/g, '<br>')}</div>
                         </div>
                     `;

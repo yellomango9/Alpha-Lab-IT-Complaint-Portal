@@ -118,7 +118,32 @@ def complaint_detail(request, complaint_id):
     
     # Get complaint history
     status_history = complaint.status_history.all().order_by('-changed_at')
-    remarks = complaint.remarks.all().order_by('-created_at')  # Show all remarks, newest first
+    
+    # Get all remarks (both general remarks and user remarks)
+    all_remarks = []
+    
+    # Get general remarks (from staff/engineers)
+    for remark in complaint.remarks.filter(is_internal_note=False).order_by('created_at'):
+        if remark.user:  # Only show remarks with a user (not system remarks)
+            all_remarks.append({
+                'text': remark.text,
+                'created_at': remark.created_at,
+                'user': remark.user,
+                'type': 'staff'
+            })
+    
+    # Get user dissatisfaction remarks
+    for remark in complaint.user_remarks.all().order_by('created_at'):
+        all_remarks.append({
+            'text': remark.remark,
+            'created_at': remark.created_at,
+            'user': remark.created_by,
+            'type': 'user'
+        })
+    
+    # Sort all remarks by creation time (newest first)
+    all_remarks.sort(key=lambda x: x['created_at'], reverse=True)
+    
     attachments = complaint.attachments.all().order_by('-uploaded_at')
     
     # Check if complaint has closing details
@@ -130,7 +155,7 @@ def complaint_detail(request, complaint_id):
     context = {
         'complaint': complaint,
         'status_history': status_history,
-        'remarks': remarks,
+        'remarks': all_remarks,
         'attachments': attachments,
         'closing_details': closing_details,
         'status_options': status_options,

@@ -80,11 +80,24 @@
         }
 
         .remark-item {
-            background: #f8f9fa;
             border-radius: 10px;
             padding: 1rem;
             margin-bottom: 1rem;
-            border-left: 4px solid var(--info-color);
+        }
+        
+        .remark-item.staff-remark {
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .remark-item.user-remark {
+            background: rgba(255, 193, 7, 0.1);
+            border-left: 4px solid var(--warning-color);
+        }
+        
+        .remark-content {
+            margin-top: 0.5rem;
+            line-height: 1.5;
         }
 
         .attachment-item {
@@ -264,18 +277,27 @@
                 </div>
                 {% endif %}
                 
-                <!-- Remarks History -->
+                <!-- Remarks & Communication History -->
                 {% if remarks %}
                 <div class="info-row">
-                    <div class="info-label">Remarks History</div>
+                    <div class="info-label">Remarks & Communication</div>
                     <div class="info-value">
                         {% for remark in remarks %}
-                            <div class="remark-item">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <strong>{{ remark.user.get_full_name|default:remark.user.username }}</strong>
+                            <div class="remark-item {% if remark.type == 'user' %}user-remark{% else %}staff-remark{% endif %}">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        {% if remark.type == 'user' %}
+                                            <i class="fas fa-user text-warning me-1"></i>
+                                            <strong class="text-warning">User:</strong>
+                                        {% else %}
+                                            <i class="fas fa-user-tie text-primary me-1"></i>
+                                            <strong class="text-primary">Staff:</strong>
+                                        {% endif %}
+                                        {{ remark.user.get_full_name|default:remark.user.username }}
+                                    </div>
                                     <small class="text-muted">{{ remark.created_at|date:"M d, Y H:i" }}</small>
                                 </div>
-                                <div>{{ remark.text|linebreaks }}</div>
+                                <div class="remark-content">{{ remark.text|linebreaks }}</div>
                             </div>
                         {% endfor %}
                     </div>

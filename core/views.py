@@ -482,17 +482,35 @@ def get_complaint_detail(request, complaint_id):
         except:
             has_feedback = False
         
-        # Get all remarks for this complaint
+        # Get all remarks for this complaint (both general remarks and user remarks)
         remarks = []
         try:
-            for remark in complaint.user_remarks.all():
+            # Get general remarks (from staff/engineers)
+            for remark in complaint.remarks.filter(is_internal_note=False).order_by('created_at'):
+                if remark.user:  # Only show remarks with a user (not system remarks)
+                    remarks.append({
+                        'id': remark.id,
+                        'remark': remark.text,
+                        'created_at': remark.created_at.strftime('%Y-%m-%d %H:%M'),
+                        'created_by': remark.user.get_full_name() or remark.user.username,
+                        'type': 'staff'
+                    })
+            
+            # Get user dissatisfaction remarks
+            for remark in complaint.user_remarks.all().order_by('created_at'):
                 remarks.append({
                     'id': remark.id,
                     'remark': remark.remark,
                     'created_at': remark.created_at.strftime('%Y-%m-%d %H:%M'),
-                    'created_by': remark.created_by.get_full_name() or remark.created_by.username
+                    'created_by': remark.created_by.get_full_name() or remark.created_by.username,
+                    'type': 'user'
                 })
+            
+            # Sort all remarks by creation time
+            remarks.sort(key=lambda x: x['created_at'])
+            
         except Exception as e:
+            print(f"Error getting remarks: {e}")  # For debugging
             pass
         
         # Get status history
