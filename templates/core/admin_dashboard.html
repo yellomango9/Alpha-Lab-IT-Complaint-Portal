@@ -1,0 +1,435 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard - Alpha Lab IT Portal{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .stat-label {
+        color: #666;
+        font-size: 0.9rem;
+    }
+    .health-score {
+        font-size: 3rem;
+        font-weight: bold;
+    }
+    .issues-table {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">
+                <i class="fas fa-tachometer-alt"></i> Admin Dashboard
+            </h1>
+        </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="health-score text-success" id="healthScore">--</div>
+                <div class="stat-label">System Health</div>
+                <small class="text-muted" id="healthStatus">Loading...</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-primary">{{ total_complaints }}</div>
+                <div class="stat-label">Total Complaints</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-warning">{{ open_complaints }}</div>
+                <div class="stat-label">Open Complaints</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-success">{{ resolved_complaints }}</div>
+                <div class="stat-label">Resolved Complaints</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-danger">{{ unassigned_complaints }}</div>
+                <div class="stat-label">Unassigned</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-info">{{ recent_complaints }}</div>
+                <div class="stat-label">This Week</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-warning">{{ issues_count }}</div>
+                <div class="stat-label">Issues (14+ days)</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-secondary">{{ avg_resolution_days }}</div>
+                <div class="stat-label">Avg Resolution (days)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Tabs for different views -->
+            <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="charts-tab" data-bs-toggle="tab" data-bs-target="#charts" type="button" role="tab">
+                        <i class="fas fa-chart-pie"></i> Analytics
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="issues-tab" data-bs-toggle="tab" data-bs-target="#issues" type="button" role="tab">
+                        <i class="fas fa-exclamation-triangle"></i> Issues ({{ issues_count }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="workload-tab" data-bs-toggle="tab" data-bs-target="#workload" type="button" role="tab">
+                        <i class="fas fa-users"></i> Workload
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="adminTabContent">
+                <!-- Charts Tab -->
+                <div class="tab-pane fade show active" id="charts" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5>Complaints by Status</h5>
+                                    <div class="chart-container">
+                                        <canvas id="statusChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5>Complaints by Type</h5>
+                                    <div class="chart-container">
+                                        <canvas id="typeChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <h5>Monthly Trend</h5>
+                                    <div class="chart-container">
+                                        <canvas id="monthlyChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Issues Tab -->
+                <div class="tab-pane fade" id="issues" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                                Complaints Open for 14+ Days
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="issues-table">
+                                <table class="table table-striped mb-0">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Title</th>
+                                            <th>User</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Assigned To</th>
+                                            <th>Days Open</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for complaint in issues %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-warning">#{{ complaint.id }}</span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'engineer:complaint_detail' complaint.id %}" class="text-decoration-none">
+                                                    {{ complaint.title|truncatechars:40 }}
+                                                </a>
+                                            </td>
+                                            <td>{{ complaint.user.get_full_name|default:complaint.user.username }}</td>
+                                            <td>
+                                                <span class="badge bg-secondary">{{ complaint.type.name }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">{{ complaint.status.name }}</span>
+                                            </td>
+                                            <td>
+                                                {% if complaint.assigned_to %}
+                                                    {{ complaint.assigned_to.get_full_name|default:complaint.assigned_to.username }}
+                                                {% else %}
+                                                    <span class="text-muted">Unassigned</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-danger">{{ complaint.days_open }} days</span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'engineer:complaint_detail' complaint.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted py-4">
+                                                <i class="fas fa-check-circle fa-2x text-success"></i>
+                                                <p class="mt-2">No issues found! All complaints are being handled within reasonable time.</p>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workload Tab -->
+                <div class="tab-pane fade" id="workload" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-users"></i>
+                                Engineer Workload
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for engineer in engineer_workload %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6 class="card-title">
+                                                {{ engineer.get_full_name|default:engineer.username }}
+                                            </h6>
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    <div class="text-center">
+                                                        <div class="h4 text-warning">{{ engineer.active_complaints }}</div>
+                                                        <small class="text-muted">Assigned</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="text-center">
+                                                        <div class="h4 text-success">{{ engineer.resolved_count }}</div>
+                                                        <small class="text-muted">Resolved</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="progress mt-2">
+                                                <div class="progress-bar" role="progressbar" 
+                                                     style="width: {% widthratio engineer.active_complaints 20 100 %}%">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'amc_admin:dashboard' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-tachometer-alt"></i> AMC Admin View
+                        </a>
+                        <a href="{% url 'engineer:dashboard' %}" class="btn btn-outline-success">
+                            <i class="fas fa-tools"></i> Engineer View
+                        </a>
+                        <a href="{% url 'amc_admin:download_complaints_report' %}" class="btn btn-outline-info">
+                            <i class="fas fa-download"></i> Download Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock"></i>
+                        System Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for dept in department_data %}
+                        <div class="col-12 mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>{{ dept.name }}</span>
+                                <span class="badge bg-secondary">{{ dept.complaint_count }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load system health
+    fetch('{% url "admin_portal:system_health" %}')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('healthScore').textContent = data.health_score;
+            document.getElementById('healthStatus').textContent = data.health_status;
+            document.getElementById('healthScore').className = `health-score text-${data.health_color}`;
+        });
+
+    // Status Chart
+    const statusData = [
+        {% for status in status_data %}
+        {
+            label: '{{ status.name }}',
+            data: {{ status.complaint_count }}
+        },
+        {% endfor %}
+    ];
+
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: statusData.map(s => s.label),
+            datasets: [{
+                data: statusData.map(s => s.data),
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // Type Chart
+    const typeData = [
+        {% for type in type_data %}
+        {
+            label: '{{ type.name }}',
+            data: {{ type.complaint_count }}
+        },
+        {% endfor %}
+    ];
+
+    new Chart(document.getElementById('typeChart'), {
+        type: 'bar',
+        data: {
+            labels: typeData.map(t => t.label),
+            datasets: [{
+                label: 'Complaints',
+                data: typeData.map(t => t.data),
+                backgroundColor: '#36A2EB'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Monthly Chart
+    const monthlyData = [
+        {% for month in monthly_data %}
+        {
+            month: '{{ month.month }}',
+            complaints: {{ month.complaints }}
+        },
+        {% endfor %}
+    ];
+
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(m => m.month),
+            datasets: [{
+                label: 'Complaints',
+                data: monthlyData.map(m => m.complaints),
+                borderColor: '#FF6384',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

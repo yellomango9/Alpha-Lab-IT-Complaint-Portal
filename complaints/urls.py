@@ -14,6 +14,7 @@ urlpatterns = [
     
     # AJAX endpoints
     path('<int:pk>/assign/', views.assign_complaint, name='assign'),
+    path('<int:pk>/update-priority/', views.update_priority, name='update_priority'),
     
     # Legacy URLs for backward compatibility
     path('submit/', views.submit_complaint, name='submit'),

@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Complaint #{{ complaint.id }} - AMC Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-ticket-alt"></i>
+                    Complaint #{{ complaint.id }}
+                    <span class="badge bg-{{ complaint.status.name|lower|default:'secondary' }} ms-2">
+                        {{ complaint.status.name }}
+                    </span>
+                </h2>
+                <a href="{% url 'amc_admin:dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Complaint Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        Complaint Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Title:</strong><br>
+                            {{ complaint.title }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Type:</strong><br>
+                            <span class="badge bg-info">{{ complaint.type.name }}</span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Submitted by:</strong><br>
+                            {{ complaint.user.get_full_name|default:complaint.user.username }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Assigned to:</strong><br>
+                            <span id="assigned-engineer">
+                                {% if complaint.assigned_to %}
+                                    {{ complaint.assigned_to.get_full_name|default:complaint.assigned_to.username }}
+                                {% else %}
+                                    <span class="text-muted">Unassigned</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Priority:</strong><br>
+                            <span class="badge bg-{% if complaint.urgency == 'critical' %}danger{% elif complaint.urgency == 'high' %}warning{% elif complaint.urgency == 'medium' %}info{% else %}secondary{% endif %}" id="priority-badge">
+                                {{ complaint.get_urgency_display }}
+                            </span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Created:</strong><br>
+                            {{ complaint.created_at|date:"M d, Y H:i" }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Days Open:</strong><br>
+                            <span class="badge bg-{% if complaint.days_open > 14 %}danger{% elif complaint.days_open > 7 %}warning{% else %}success{% endif %}">
+                                {{ complaint.days_open }} days
+                            </span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-12">
+                            <strong>Description:</strong><br>
+                            <div class="mt-2 p-3 bg-light rounded">
+                                {{ complaint.description|linebreaks }}
+                            </div>
+                        </div>
+                    </div>
+                    {% if complaint.location %}
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Location:</strong><br>
+                            {{ complaint.location }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Contact:</strong><br>
+                            {{ complaint.contact_number|default:"Not provided" }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Remarks History -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments"></i>
+                        Remarks History
+                        <span class="badge bg-secondary">{{ remarks.count }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for remark in remarks %}
+                    <div class="border-start border-3 {% if remark.is_internal_note %}border-warning{% else %}border-primary{% endif %} ps-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>
+                                    {% if remark.user %}
+                                        {{ remark.user.get_full_name|default:remark.user.username }}
+                                    {% else %}
+                                        System
+                                    {% endif %}
+                                </strong>
+                                {% if remark.is_internal_note %}
+                                    <span class="badge bg-warning ms-2">Internal</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ remark.created_at|date:"M d, Y H:i" }}</small>
+                        </div>
+                        <div class="mt-2">{{ remark.text|linebreaks }}</div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-comment-slash fa-2x"></i>
+                        <p class="mt-2">No remarks yet.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tools"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Priority Change -->
+                    <div class="mb-3">
+                        <label class="form-label">Change Priority:</label>
+                        <div class="input-group">
+                            <select class="form-select" id="prioritySelect">
+                                <option value="low" {% if complaint.urgency == 'low' %}selected{% endif %}>Low</option>
+                                <option value="medium" {% if complaint.urgency == 'medium' %}selected{% endif %}>Medium</option>
+                                <option value="high" {% if complaint.urgency == 'high' %}selected{% endif %}>High</option>
+                                <option value="critical" {% if complaint.urgency == 'critical' %}selected{% endif %}>Critical</option>
+                            </select>
+                            <button class="btn btn-outline-primary" type="button" onclick="updatePriority()">
+                                <i class="fas fa-save"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Assign Engineer -->
+                    <div class="mb-3">
+                        <label class="form-label">Assign Engineer:</label>
+                        <div class="input-group">
+                            <select class="form-select" id="engineerSelect">
+                                <option value="">Unassign</option>
+                                {% for engineer in engineers %}
+                                <option value="{{ engineer.id }}" {% if complaint.assigned_to.id == engineer.id %}selected{% endif %}>
+                                    {{ engineer.get_full_name|default:engineer.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn btn-outline-success" type="button" onclick="assignEngineer()">
+                                <i class="fas fa-user-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Other Actions -->
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'engineer:download_complaint_pdf' complaint.id %}" class="btn btn-outline-info">
+                            <i class="fas fa-file-pdf"></i> Download PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status History -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history"></i>
+                        Status History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for history in status_history %}
+                    <div class="border-start border-3 border-secondary ps-3 mb-3">
+                        <div class="fw-bold">
+                            {{ history.previous_status.name }} → {{ history.new_status.name }}
+                        </div>
+                        <div class="text-muted small">
+                            by {{ history.changed_by.get_full_name|default:history.changed_by.username }}
+                            <br>
+                            {{ history.changed_at|date:"M d, Y H:i" }}
+                        </div>
+                        {% if history.notes %}
+                        <div class="mt-1 small">{{ history.notes }}</div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-clock"></i>
+                        <p class="mt-2 mb-0">No status changes yet.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updatePriority() {
+    const priority = document.getElementById('prioritySelect').value;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    fetch(`{% url 'amc_admin:update_complaint_priority' complaint.id %}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken
+        },
+        body: `priority=${priority}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update priority badge
+            const badge = document.getElementById('priority-badge');
+            badge.textContent = data.new_priority_display;
+            badge.className = `badge bg-${getPriorityColor(data.new_priority)}`;
+            
+            alert('Priority updated successfully!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error occurred');
+    });
+}
+
+function assignEngineer() {
+    const engineerId = document.getElementById('engineerSelect').value;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    fetch(`{% url 'amc_admin:assign_engineer' complaint.id %}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken
+        },
+        body: `engineer_id=${engineerId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update assigned engineer display
+            document.getElementById('assigned-engineer').innerHTML = 
+                data.engineer_name === 'Unassigned' 
+                    ? '<span class="text-muted">Unassigned</span>'
+                    : data.engineer_name;
+            
+            alert('Engineer assignment updated!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error occurred');
+    });
+}
+
+function getPriorityColor(priority) {
+    switch(priority) {
+        case 'critical': return 'danger';
+        case 'high': return 'warning';
+        case 'medium': return 'info';
+        default: return 'secondary';
+    }
+}
+</script>
+{% endblock %}

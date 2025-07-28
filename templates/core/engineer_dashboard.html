@@ -209,7 +209,7 @@
                     <div class="section-body">
                         {% if all_complaints %}
                             {% for complaint in all_complaints %}
-                                <div class="complaint-item" onclick="location.href='{% url 'core:complaint_detail' complaint.id %}'">
+                                <div class="complaint-item" onclick="location.href='{% url 'engineer:complaint_detail' complaint.id %}'">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h6 class="mb-1">#{{ complaint.id }} - {{ complaint.title }}</h6>
                                         <span class="badge bg-primary">{{ complaint.status.name }}</span>
@@ -250,7 +250,7 @@
                     <div class="section-body">
                         {% if assigned_complaints %}
                             {% for complaint in assigned_complaints %}
-                                <div class="complaint-item" onclick="location.href='{% url 'core:complaint_detail' complaint.id %}'">
+                                <div class="complaint-item" onclick="location.href='{% url 'engineer:complaint_detail' complaint.id %}'">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h6 class="mb-1">#{{ complaint.id }} - {{ complaint.title }}</h6>
                                         <span class="badge bg-primary">{{ complaint.status.name }}</span>
@@ -287,7 +287,7 @@
                     <div class="section-body">
                         {% if closed_complaints %}
                             {% for complaint in closed_complaints %}
-                                <div class="complaint-item" onclick="location.href='{% url 'core:complaint_detail' complaint.id %}'">
+                                <div class="complaint-item" onclick="location.href='{% url 'engineer:complaint_detail' complaint.id %}'">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h6 class="mb-1">#{{ complaint.id }} - {{ complaint.title }}</h6>
                                         <span class="badge bg-success">{{ complaint.status.name }}</span>

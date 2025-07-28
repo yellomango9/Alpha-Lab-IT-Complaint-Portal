@@ -102,7 +102,7 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'core:engineer_dashboard' %}">
+            <a class="navbar-brand" href="{% url 'engineer:dashboard' %}">
                 <i class="fas fa-arrow-left me-2"></i>
                 Back to Dashboard
             </a>
@@ -139,7 +139,7 @@
                             {{ complaint.status.name }}
                         </span>
                         <div class="mt-2">
-                            <a href="{% url 'core:download_complaint_pdf' complaint.id %}" class="btn btn-light btn-sm">
+                            <a href="{% url 'engineer:download_complaint_pdf' complaint.id %}" class="btn btn-light btn-sm">
                                 <i class="fas fa-download me-1"></i>Download PDF
                             </a>
                         </div>
@@ -185,7 +185,7 @@
                             <div class="info-label">Assigned Engineer</div>
                             <div class="info-value">
                                 {% if complaint.assigned_to %}
-                                    {{ complaint.assigned_to.get_full_name }}
+                                    {{ complaint.assigned_to.get_full_name|default:complaint.assigned_to.username }}
                                 {% else %}
                                     <span class="text-warning">Unassigned</span>
                                 {% endif %}
@@ -289,7 +289,7 @@
         <div class="action-buttons">
             <div class="row">
                 <div class="col-md-6">
-                    <form method="post" action="{% url 'core:update_complaint_status' complaint.id %}">
+                    <form method="post" action="{% url 'engineer:update_complaint_status' complaint.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="resolve">
                         <div class="mb-3">
@@ -304,7 +304,7 @@
                 </div>
                 
                 <div class="col-md-6">
-                    <form method="post" action="{% url 'core:update_complaint_status' complaint.id %}">
+                    <form method="post" action="{% url 'engineer:update_complaint_status' complaint.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="update_status">
                         <div class="mb-3">

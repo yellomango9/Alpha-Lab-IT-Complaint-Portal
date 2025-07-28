@@ -34,7 +34,9 @@ urlpatterns = [
     
     # App URLs
     path('dashboard/', include('reports.urls')),
-    path('engineer/', include('core.urls')),
+    path('engineer/', include('core.engineer_urls')),
+    path('amc-admin/', include('core.amc_admin_urls')),
+    path('admin-portal/', include('core.admin_urls')),
     path('complaints/', include('complaints.urls')),
     path('core/', include('core.urls')),
     path('faq/', include('faq.urls')),

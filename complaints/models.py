@@ -3,6 +3,7 @@ from django.db import models
 from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
+from django.contrib.auth.models import User
 from core.models import Department
 
 
@@ -358,6 +359,77 @@ class ComplaintClosing(models.Model):
 
     def __str__(self):
         return f"Closing for Complaint #{self.complaint.id}"
+
+
+class ComplaintFeedback(models.Model):
+    """
+    Model to store user feedback when closing a complaint
+    """
+    complaint = models.OneToOneField(
+        'Complaint',
+        on_delete=models.CASCADE,
+        related_name='user_feedback',
+        help_text="The complaint this feedback is for"
+    )
+    rating = models.IntegerField(
+        choices=[(i, f'{i} Star{"s" if i != 1 else ""}') for i in range(1, 6)],
+        help_text="User rating from 1 to 5 stars"
+    )
+    feedback_text = models.TextField(
+        blank=True,
+        help_text="User's detailed feedback"
+    )
+    is_satisfied = models.BooleanField(
+        default=True,
+        help_text="Whether user is satisfied with the resolution"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the feedback was submitted"
+    )
+
+    class Meta:
+        verbose_name = 'Complaint Feedback'
+        verbose_name_plural = 'Complaint Feedbacks'
+
+    def __str__(self):
+        return f"Feedback for Complaint #{self.complaint.id} - {self.rating} stars"
+
+
+class ComplaintRemark(models.Model):
+    """
+    Model to store user remarks when not satisfied with resolution
+    """
+    complaint = models.ForeignKey(
+        'Complaint',
+        on_delete=models.CASCADE,
+        related_name='user_remarks',
+        help_text="The complaint this remark is for"
+    )
+    remark = models.TextField(
+        help_text="User's remark about the resolution"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the remark was added"
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        help_text="User who created the remark"
+    )
+    is_read_by_engineer = models.BooleanField(
+        default=False,
+        help_text="Whether the assigned engineer has read this remark"
+    )
+
+    class Meta:
+        verbose_name = 'Complaint Remark'
+        verbose_name_plural = 'Complaint Remarks'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Remark for Complaint #{self.complaint.id} by {self.created_by.username}"
 
 
 

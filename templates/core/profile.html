@@ -87,11 +87,11 @@
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                     <span>Open Complaints:</span>
-                    <strong>{{ user.complaints.filter.status__is_closed=False.count }}</strong>
+                    <strong>{{ open_complaints_count|default:0 }}</strong>
                 </div>
                 <div class="d-flex justify-content-between">
                     <span>Resolved Complaints:</span>
-                    <strong>{{ user.complaints.filter.status__is_closed=True.count }}</strong>
+                    <strong>{{ resolved_complaints_count|default:0 }}</strong>
                 </div>
             </div>
         </div>

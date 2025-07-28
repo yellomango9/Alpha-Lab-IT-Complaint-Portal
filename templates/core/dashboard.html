@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Alpha Lab IT Complaint Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1>Dashboard</h1>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Quick Stats</h5>
+                            <p class="card-text">Welcome to your dashboard!</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Recent Activity</h5>
+                            <p class="card-text">Recent system activity will be shown here.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

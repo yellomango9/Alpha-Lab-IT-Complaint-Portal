@@ -34,7 +34,7 @@ class AdminRequiredMixin(UserPassesTestMixin):
             return False
         
         # Check if user is in allowed groups
-        allowed_groups = ['Admin', 'AMC Admin', 'Engineer']
+        allowed_groups = ['ADMIN', 'AMC ADMIN', 'ENGINEER']
         user_groups = self.request.user.groups.values_list('name', flat=True)
         return any(group in allowed_groups for group in user_groups)
 
@@ -50,9 +50,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         user = self.request.user
         user_groups = user.groups.values_list('name', flat=True)
         
-        if 'Admin' in user_groups or 'AMC Admin' in user_groups:
+        if 'ADMIN' in user_groups or 'AMC ADMIN' in user_groups:
             return ['reports/admin_dashboard.html']
-        elif 'Engineer' in user_groups:
+        elif 'ENGINEER' in user_groups:
             return ['reports/engineer_dashboard.html']
         
         # Fallback (shouldn't happen since only IT staff can log in)
@@ -69,7 +69,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # Group-based metrics
         user_groups = user.groups.values_list('name', flat=True)
         
-        if 'Admin' in user_groups or 'AMC Admin' in user_groups:
+        if 'ADMIN' in user_groups or 'AMC ADMIN' in user_groups:
             # Admin sees everything
             context.update({
                 'total_complaints': self.get_total_complaints(),
@@ -84,7 +84,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'engineer_performance': self.get_engineer_performance(),
                 'system_health': self.get_system_health(),
             })
-        elif 'Engineer' in user_groups:
+        elif 'ENGINEER' in user_groups:
             # Engineer sees all complaints but with focus on assignments
             context.update({
                 'total_complaints': self.get_total_complaints(),
@@ -153,7 +153,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         
         # Filter based on user group
         user_groups = user.groups.values_list('name', flat=True)
-        if 'Engineer' in user_groups or 'Admin' in user_groups or 'AMC Admin' in user_groups:
+        if 'ENGINEER' in user_groups or 'ADMIN' in user_groups or 'AMC ADMIN' in user_groups:
             # Engineers see all recent complaints
             queryset = queryset.all()
         else:
@@ -387,7 +387,7 @@ def generate_report(request):
     Supports different report types and export formats.
     """
     # Check if user has access (Admin, AMC Admin, or Engineer groups)
-    allowed_groups = ['Admin', 'AMC Admin', 'Engineer']
+    allowed_groups = ['ADMIN', 'AMC ADMIN', 'ENGINEER']
     user_groups = request.user.groups.values_list('name', flat=True)
     has_access = any(group in allowed_groups for group in user_groups)
     

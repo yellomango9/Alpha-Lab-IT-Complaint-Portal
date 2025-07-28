@@ -576,14 +576,28 @@
 
         // Show complaint detail
         function showComplaintDetail(complaintId) {
+            console.log('DEBUG: Fetching complaint details for ID:', complaintId);
             fetch(`{% url "core:get_complaint_detail" complaint_id=0 %}`.replace('0', complaintId))
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        displayComplaintDetail(data.complaint);
-                        new bootstrap.Modal(document.getElementById('complaintModal')).show();
-                    } else {
-                        showAlert('danger', 'Error loading complaint details: ' + data.error);
+                .then(response => {
+                    console.log('DEBUG: Response status:', response.status);
+                    console.log('DEBUG: Response headers:', response.headers.get('Content-Type'));
+                    return response.text(); // Get as text first to debug
+                })
+                .then(text => {
+                    console.log('DEBUG: Response text:', text);
+                    try {
+                        const data = JSON.parse(text);
+                        console.log('DEBUG: Parsed JSON:', data);
+                        if (data.success) {
+                            displayComplaintDetail(data.complaint);
+                            new bootstrap.Modal(document.getElementById('complaintModal')).show();
+                        } else {
+                            showAlert('danger', 'Error loading complaint details: ' + data.error);
+                        }
+                    } catch (parseError) {
+                        console.error('DEBUG: JSON parse error:', parseError);
+                        console.error('DEBUG: Raw response:', text);
+                        showAlert('danger', 'Invalid response format');
                     }
                 })
                 .catch(error => {
@@ -631,26 +645,65 @@
                 `;
             }
 
-            // Add user response section if complaint is resolved by staff but not closed by user
+            // Show remarks if any
+            let remarksHtml = '';
+            if (complaint.remarks && complaint.remarks.length > 0) {
+                remarksHtml = `
+                    <div class="mb-3">
+                        <h6><i class="fas fa-comments me-2"></i>Remarks</h6>
+                        <div class="remarks-list">
+                `;
+                complaint.remarks.forEach(remark => {
+                    remarksHtml += `
+                        <div class="p-2 mb-2 bg-light border-start border-3 border-info">
+                            <small class="text-muted">${remark.created_at} by ${remark.created_by}</small>
+                            <div>${remark.remark.replace(/\n/g, '<br>')}</div>
+                        </div>
+                    `;
+                });
+                remarksHtml += '</div></div>';
+            }
+
+            // Add user response section if complaint is resolved but not closed
             let userResponseHtml = '';
-            if (complaint.is_resolved && complaint.staff_closing_remark && complaint.user_satisfied === null) {
+            if (complaint.can_close && !complaint.has_feedback) {
                 userResponseHtml = `
-                    <div class="mt-4 p-3 bg-warning bg-opacity-10 border border-warning border-opacity-25 rounded">
-                        <h6><i class="fas fa-question-circle me-2"></i>Please Review the Resolution</h6>
-                        <p>Our technical team has resolved your complaint. Are you satisfied with the resolution?</p>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-success btn-sm" onclick="handleUserResponse(${complaint.id}, 'satisfied')">
-                                <i class="fas fa-thumbs-up me-1"></i>Yes, I'm Satisfied
+                    <div class="mt-4 p-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded">
+                        <h6><i class="fas fa-check-circle me-2"></i>Complaint Resolved!</h6>
+                        <p>Our technical team has resolved your complaint. Please provide your feedback:</p>
+                        <div class="d-flex gap-2 mb-3">
+                            <button class="btn btn-success btn-sm" onclick="showFeedbackForm(${complaint.id})">
+                                <i class="fas fa-star me-1"></i>Close with Feedback
                             </button>
-                            <button class="btn btn-warning btn-sm" onclick="showNotSatisfiedForm(${complaint.id})">
-                                <i class="fas fa-thumbs-down me-1"></i>No, I'm Not Satisfied
+                            <button class="btn btn-warning btn-sm" onclick="showRemarkForm(${complaint.id})">
+                                <i class="fas fa-comment me-1"></i>Add Remark (Not Satisfied)
                             </button>
                         </div>
-                        <div id="notSatisfiedForm${complaint.id}" class="mt-3" style="display: none;">
-                            <textarea class="form-control mb-2" id="userRemark${complaint.id}" rows="3" 
-                                placeholder="Please tell us why you're not satisfied..."></textarea>
-                            <button class="btn btn-warning btn-sm" onclick="handleUserResponse(${complaint.id}, 'not_satisfied')">
-                                Submit Feedback
+                        
+                        <!-- Feedback Form -->
+                        <div id="feedbackForm${complaint.id}" class="mt-3" style="display: none;">
+                            <h6>Rate your experience:</h6>
+                            <div class="rating-stars mb-3" data-rating="0">
+                                <i class="rating-star fas fa-star" data-rating="1"></i>
+                                <i class="rating-star fas fa-star" data-rating="2"></i>
+                                <i class="rating-star fas fa-star" data-rating="3"></i>
+                                <i class="rating-star fas fa-star" data-rating="4"></i>
+                                <i class="rating-star fas fa-star" data-rating="5"></i>
+                            </div>
+                            <textarea class="form-control mb-2" id="feedbackText${complaint.id}" rows="3" 
+                                placeholder="Additional feedback (optional)..."></textarea>
+                            <button class="btn btn-success btn-sm" onclick="submitFeedback(${complaint.id})" disabled id="submitFeedbackBtn${complaint.id}">
+                                <i class="fas fa-paper-plane me-1"></i>Submit Feedback & Close
+                            </button>
+                        </div>
+                        
+                        <!-- Remark Form -->
+                        <div id="remarkForm${complaint.id}" class="mt-3" style="display: none;">
+                            <h6>Why are you not satisfied?</h6>
+                            <textarea class="form-control mb-2" id="remarkText${complaint.id}" rows="3" 
+                                placeholder="Please explain what needs to be improved..." required></textarea>
+                            <button class="btn btn-warning btn-sm" onclick="submitRemark(${complaint.id})">
+                                <i class="fas fa-comment me-1"></i>Submit Remark
                             </button>
                         </div>
                     </div>
@@ -686,6 +739,7 @@
                         </div>
 
                         ${staffRemarkHtml}
+                        ${remarksHtml}
                         ${attachmentsHtml}
                         ${userResponseHtml}
                     </div>
@@ -693,92 +747,24 @@
             `;
         }
 
-        // Handle user response to staff resolution
-        function handleUserResponse(complaintId, action) {
-            const formData = new FormData();
-            formData.append('action', action);
-            
-            if (action === 'not_satisfied') {
-                const remark = document.getElementById(`userRemark${complaintId}`).value.trim();
-                if (!remark) {
-                    showAlert('warning', 'Please provide a reason for not being satisfied.');
-                    return;
-                }
-                formData.append('user_remark', remark);
-            }
-            
-            fetch(`{% url "core:handle_complaint_response" complaint_id=0 %}`.replace('0', complaintId), {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (data.action === 'feedback') {
-                        showFeedbackForm(complaintId);
-                    } else {
-                        showAlert('success', data.message);
-                        document.getElementById('complaintModal').querySelector('.btn-close').click();
-                        loadComplaints(); // Reload complaints list
-                    }
-                } else {
-                    showAlert('danger', data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('danger', 'Network error occurred.');
-            });
-        }
-
         // Show feedback form
         function showFeedbackForm(complaintId) {
-            const modalBody = document.getElementById('complaintModalBody');
-            modalBody.innerHTML = `
-                <div class="text-center">
-                    <h5><i class="fas fa-star me-2"></i>Please Rate Your Experience</h5>
-                    <p class="text-muted">Help us improve our IT support services</p>
-                    
-                    <div class="mb-4">
-                        <div class="rating-stars mb-2">
-                            ${[1,2,3,4,5].map(i => `
-                                <i class="fas fa-star rating-star" data-rating="${i}" style="font-size: 2rem; color: #ddd; cursor: pointer; margin: 0 5px;"></i>
-                            `).join('')}
-                        </div>
-                        <div class="rating-text">Click to rate</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <textarea class="form-control" id="feedbackText" rows="4" 
-                            placeholder="Any additional feedback? (optional)"></textarea>
-                    </div>
-                    
-                    <button class="btn btn-primary" onclick="submitFeedback(${complaintId})" disabled id="submitFeedbackBtn">
-                        <i class="fas fa-paper-plane me-2"></i>Submit Feedback
-                    </button>
-                </div>
-            `;
-            
-            setupRatingStars();
+            document.getElementById(`feedbackForm${complaintId}`).style.display = 'block';
+            document.getElementById(`remarkForm${complaintId}`).style.display = 'none';
+            setupRatingStars(complaintId);
+        }
+
+        // Show remark form
+        function showRemarkForm(complaintId) {
+            document.getElementById(`remarkForm${complaintId}`).style.display = 'block';
+            document.getElementById(`feedbackForm${complaintId}`).style.display = 'none';
         }
 
         // Setup rating stars functionality
-        function setupRatingStars() {
+        function setupRatingStars(complaintId) {
             let selectedRating = 0;
             const stars = document.querySelectorAll('.rating-star');
-            const ratingText = document.querySelector('.rating-text');
-            const submitBtn = document.getElementById('submitFeedbackBtn');
-            
-            const ratingTexts = {
-                1: 'Very Unhappy 😟',
-                2: 'Unhappy 😕', 
-                3: 'Neutral 😐',
-                4: 'Happy 😊',
-                5: 'Very Happy 😃'
-            };
+            const submitBtn = document.getElementById(`submitFeedbackBtn${complaintId}`);
             
             stars.forEach(star => {
                 star.addEventListener('mouseover', function() {
@@ -789,40 +775,34 @@
                 star.addEventListener('click', function() {
                     selectedRating = parseInt(this.dataset.rating);
                     updateStars(selectedRating, true);
-                    ratingText.textContent = ratingTexts[selectedRating];
                     submitBtn.disabled = false;
+                    submitBtn.dataset.rating = selectedRating;
                 });
-            });
-            
-            document.querySelector('.rating-stars').addEventListener('mouseleave', function() {
-                updateStars(selectedRating, true);
             });
             
             function updateStars(rating, permanent) {
                 stars.forEach((star, index) => {
                     if (index < rating) {
-                        star.style.color = permanent ? '#ffc107' : '#ffeb3b';
+                        star.style.color = '#ffc107';
                     } else {
-                        star.style.color = '#ddd';
+                        star.style.color = '#dee2e6';
                     }
                 });
             }
-            
-            window.selectedRating = selectedRating;
         }
 
         // Submit feedback
         function submitFeedback(complaintId) {
-            const rating = window.selectedRating;
-            const feedbackText = document.getElementById('feedbackText').value.trim();
+            const rating = document.getElementById(`submitFeedbackBtn${complaintId}`).dataset.rating;
+            const feedbackText = document.getElementById(`feedbackText${complaintId}`).value.trim();
             
             if (!rating) {
-                showAlert('warning', 'Please provide a rating.');
+                showAlert('warning', 'Please select a rating.');
                 return;
             }
             
             const formData = new FormData();
-            formData.append('action', 'submit_feedback');
+            formData.append('action', 'close_with_feedback');
             formData.append('rating', rating);
             formData.append('feedback_text', feedbackText);
             
@@ -838,7 +818,7 @@
                 if (data.success) {
                     showAlert('success', data.message);
                     document.getElementById('complaintModal').querySelector('.btn-close').click();
-                    loadComplaints(); // Reload complaints list
+                    loadComplaints();
                 } else {
                     showAlert('danger', data.error);
                 }
@@ -849,9 +829,40 @@
             });
         }
 
-        // Show not satisfied form
-        function showNotSatisfiedForm(complaintId) {
-            document.getElementById(`notSatisfiedForm${complaintId}`).style.display = 'block';
+        // Submit remark
+        function submitRemark(complaintId) {
+            const remarkText = document.getElementById(`remarkText${complaintId}`).value.trim();
+            
+            if (!remarkText) {
+                showAlert('warning', 'Please provide a remark.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'add_remark');
+            formData.append('remark_text', remarkText);
+            
+            fetch(`{% url "core:handle_complaint_response" complaint_id=0 %}`.replace('0', complaintId), {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    document.getElementById('complaintModal').querySelector('.btn-close').click();
+                    loadComplaints();
+                } else {
+                    showAlert('danger', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Network error occurred.');
+            });
         }
 
         // Show alert

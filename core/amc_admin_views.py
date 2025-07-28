@@ -21,7 +21,7 @@ def amc_admin_required(view_func):
             return redirect('login')
         
         # Check if user is AMC admin or admin
-        if not (request.user.groups.filter(name__in=['AMC Admin', 'Admin']).exists() or 
+        if not (request.user.groups.filter(name__in=['AMC ADMIN', 'ADMIN']).exists() or 
                 request.user.is_staff):
             messages.error(request, 'Access denied. You need AMC admin or admin privileges.')
             return redirect('login')
@@ -71,7 +71,7 @@ def amc_admin_dashboard(request):
     complaint_types = ComplaintType.objects.filter(is_active=True).order_by('name')
     statuses = Status.objects.filter(is_active=True, is_closed=False).order_by('order')
     engineers = User.objects.filter(
-        groups__name__in=['Engineer', 'AMC Admin', 'Admin'],
+        groups__name__in=['ENGINEER'],  # Only engineers for assignment
         is_active=True
     ).order_by('first_name', 'last_name')
     departments = Department.objects.filter(is_active=True).order_by('name')
@@ -93,6 +93,42 @@ def amc_admin_dashboard(request):
     }
     
     return render(request, 'core/amc_admin_dashboard.html', context)
+
+
+@amc_admin_required
+def complaint_detail(request, complaint_id):
+    """Detailed view of a complaint for AMC admins."""
+    complaint = get_object_or_404(Complaint, id=complaint_id)
+    
+    # Get complaint history
+    status_history = complaint.status_history.all().order_by('-changed_at')
+    remarks = complaint.remarks.all().order_by('-created_at')  # Show all remarks
+    attachments = complaint.attachments.all().order_by('-uploaded_at')
+    
+    # Check if complaint has closing details
+    closing_details = getattr(complaint, 'closing_details', None)
+    
+    # Get available status options for updates
+    status_options = Status.objects.filter(is_active=True).order_by('order')
+    
+    # Get engineers for assignment
+    engineers = User.objects.filter(
+        groups__name__in=['ENGINEER'],
+        is_active=True
+    ).order_by('first_name', 'last_name')
+    
+    context = {
+        'complaint': complaint,
+        'status_history': status_history,
+        'remarks': remarks,
+        'attachments': attachments,
+        'closing_details': closing_details,
+        'status_options': status_options,
+        'engineers': engineers,
+        'is_amc_admin': True,  # Flag to show AMC admin specific options
+    }
+    
+    return render(request, 'core/amc_admin_complaint_detail.html', context)
 
 
 @amc_admin_required
@@ -131,16 +167,32 @@ def assign_engineer(request, complaint_id):
         try:
             engineer = User.objects.get(
                 id=engineer_id,
-                groups__name__in=['Engineer', 'AMC Admin', 'Admin'],
+                groups__name__in=['ENGINEER'],  # Only engineers
                 is_active=True
             )
             complaint.assigned_to = engineer
+            
+            # Set status to "Assigned" when someone is assigned
+            assigned_status = Status.objects.filter(name='Assigned', is_active=True).first()
+            if assigned_status:
+                complaint.status = assigned_status
+                
             complaint.save()
+            
+            # Create a remark about the assignment
+            from complaints.models import Remark
+            Remark.objects.create(
+                complaint=complaint,
+                user=request.user,
+                text=f"Complaint assigned to {engineer.get_full_name() or engineer.username} by {request.user.get_full_name() or request.user.username}",
+                is_internal_note=True
+            )
             
             return JsonResponse({
                 'success': True,
-                'message': f'Assigned to {engineer.get_full_name()}',
-                'engineer_name': engineer.get_full_name()
+                'message': f'Assigned to {engineer.get_full_name() or engineer.username}',
+                'engineer_name': engineer.get_full_name() or engineer.username,
+                'status': complaint.status.name
             })
         except User.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'Engineer not found'})
@@ -221,7 +273,7 @@ def download_complaints_report(request):
             complaint.user.profile.department.name if complaint.user.profile.department else 'N/A',
             complaint.get_urgency_display(),
             complaint.status.name,
-            complaint.assigned_to.get_full_name() if complaint.assigned_to else 'Unassigned',
+            (complaint.assigned_to.get_full_name() or complaint.assigned_to.username) if complaint.assigned_to else 'Unassigned',
             complaint.created_at.strftime('%Y-%m-%d %H:%M'),
             complaint.resolved_at.strftime('%Y-%m-%d %H:%M') if complaint.resolved_at else 'N/A',
             complaint.days_open if not complaint.is_resolved else f'{complaint.days_open} (closed)'
@@ -250,13 +302,13 @@ def bulk_actions(request):
             try:
                 engineer = User.objects.get(
                     id=engineer_id,
-                    groups__name__in=['Engineer', 'AMC Admin', 'Admin'],
+                    groups__name__in=['ENGINEER', 'AMC ADMIN', 'ADMIN'],
                     is_active=True
                 )
                 complaints.update(assigned_to=engineer)
                 return JsonResponse({
                     'success': True,
-                    'message': f'{complaints.count()} complaints assigned to {engineer.get_full_name()}'
+                    'message': f'{complaints.count()} complaints assigned to {engineer.get_full_name() or engineer.username}'
                 })
             except User.DoesNotExist:
                 return JsonResponse({'success': False, 'error': 'Engineer not found'})

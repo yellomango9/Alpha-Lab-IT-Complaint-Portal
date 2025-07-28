@@ -28,7 +28,7 @@ def engineer_required(view_func):
             return redirect('login')
         
         # Check if user is engineer, AMC admin, or admin
-        if not (request.user.groups.filter(name__in=['Engineer', 'AMC Admin', 'Admin']).exists() or 
+        if not (request.user.groups.filter(name__in=['ENGINEER', 'AMC ADMIN', 'ADMIN']).exists() or 
                 request.user.is_staff):
             messages.error(request, 'Access denied. You need engineer or admin privileges.')
             return redirect('login')
@@ -73,13 +73,52 @@ def engineer_dashboard(request):
 
 
 @engineer_required
+def assign_to_self(request, complaint_id):
+    """Allow engineer to assign an unassigned complaint to themselves."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'})
+    
+    complaint = get_object_or_404(Complaint, id=complaint_id)
+    
+    # Check if complaint is already assigned
+    if complaint.assigned_to is not None:
+        return JsonResponse({'success': False, 'error': 'Complaint is already assigned'})
+    
+    # Assign to current user
+    complaint.assigned_to = request.user
+    
+    # Change status to 'Assigned'
+    assigned_status = Status.objects.filter(name='Assigned', is_active=True).first()
+    if assigned_status:
+        complaint.status = assigned_status
+    
+    complaint.save()
+    
+    # Create a remark about the assignment
+    from complaints.models import Remark
+    Remark.objects.create(
+        complaint=complaint,
+        user=request.user,
+        text=f"Complaint self-assigned by {request.user.get_full_name() or request.user.username}",
+        is_internal_note=True
+    )
+    
+    return JsonResponse({
+        'success': True,
+        'message': 'Complaint assigned to you successfully',
+        'assigned_to': request.user.get_full_name() or request.user.username,
+        'status': complaint.status.name
+    })
+
+
+@engineer_required
 def complaint_detail(request, complaint_id):
     """Detailed view of a complaint for engineers."""
     complaint = get_object_or_404(Complaint, id=complaint_id)
     
     # Get complaint history
     status_history = complaint.status_history.all().order_by('-changed_at')
-    remarks = complaint.remarks.all().order_by('created_at')
+    remarks = complaint.remarks.all().order_by('-created_at')  # Show all remarks, newest first
     attachments = complaint.attachments.all().order_by('-uploaded_at')
     
     # Check if complaint has closing details
@@ -113,7 +152,7 @@ def update_complaint_status(request, complaint_id):
             staff_remark = request.POST.get('staff_remark', '').strip()
             if not staff_remark:
                 messages.error(request, 'Please provide a closing remark.')
-                return redirect('core:complaint_detail', complaint_id=complaint_id)
+                return redirect('engineer:complaint_detail', complaint_id=complaint_id)
             
             # Set complaint to resolved status
             resolved_status = Status.objects.filter(is_closed=True, name__icontains='resolved').first()
@@ -137,13 +176,20 @@ def update_complaint_status(request, complaint_id):
                 messages.error(request, 'No resolved status found in the system.')
         
         elif action == 'update_status':
-            # Update status and add remark
+            # Engineers can only change status to 'In Progress' or add remarks
             new_status_id = request.POST.get('status')
             remark_text = request.POST.get('remark', '').strip()
             
             if new_status_id:
                 try:
                     new_status = Status.objects.get(id=new_status_id)
+                    
+                    # Restrict engineers to only set to 'In Progress' status
+                    allowed_statuses = ['In Progress', 'Waiting for User']
+                    if new_status.name not in allowed_statuses:
+                        messages.error(request, 'Engineers can only change status to "In Progress" or "Waiting for User". Use the resolve button to complete the complaint.')
+                        return redirect('engineer:complaint_detail', complaint_id=complaint_id)
+                    
                     old_status = complaint.status
                     complaint.status = new_status
                     complaint.save()
@@ -172,9 +218,9 @@ def update_complaint_status(request, complaint_id):
                 except Status.DoesNotExist:
                     messages.error(request, 'Invalid status selected.')
         
-        return redirect('core:complaint_detail', complaint_id=complaint_id)
+        return redirect('engineer:complaint_detail', complaint_id=complaint_id)
     
-    return redirect('core:complaint_detail', complaint_id=complaint_id)
+    return redirect('engineer:complaint_detail', complaint_id=complaint_id)
 
 
 @engineer_required

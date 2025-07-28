@@ -1,12 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.models import User
 from django.views.generic import ListView, DetailView, CreateView, UpdateView
 from django.contrib import messages
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.http import JsonResponse, HttpResponseForbidden
 from django.utils import timezone
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_POST
 
 from .models import Complaint, FileAttachment, Status, ComplaintType
 from .forms import ComplaintForm, ComplaintUpdateForm, FileAttachmentForm
@@ -41,7 +44,7 @@ class ComplaintListView(LoginRequiredMixin, ListView):
             elif user.profile.is_engineer:
                 # Engineers see all complaints they can work on
                 pass
-            elif user.groups.filter(name='AMC Admin').exists():
+            elif user.groups.filter(name='AMC ADMIN').exists():
                 # AMC Admins see only AMC-related complaints
                 queryset = queryset.filter(
                     Q(type__name__icontains='hardware') | 
@@ -84,8 +87,16 @@ class ComplaintListView(LoginRequiredMixin, ListView):
         # Basic context for all users
         context['user_role'] = 'user'  # default
         
-        if hasattr(user, 'profile') and user.profile.role:
-            context['user_role'] = user.profile.role.name.lower()
+        # Determine user role based on group membership
+        if hasattr(user, 'profile'):
+            if user.groups.filter(name='ADMIN').exists():
+                context['user_role'] = 'admin'
+            elif user.groups.filter(name='AMC ADMIN').exists():
+                context['user_role'] = 'amc_admin'
+            elif user.groups.filter(name='ENGINEER').exists():
+                context['user_role'] = 'engineer'
+            else:
+                context['user_role'] = 'user'
         
         # Add role-specific context
         if hasattr(user, 'profile') and (user.profile.is_admin or user.profile.is_engineer):
@@ -94,8 +105,8 @@ class ComplaintListView(LoginRequiredMixin, ListView):
                 'complaint_types': ComplaintType.objects.filter(is_active=True),
                 'urgency_choices': Complaint.URGENCY_CHOICES,
                 'engineers': UserProfile.objects.filter(
-                    role__name__icontains='engineer'
-                ).select_related('user'),
+                    user__groups__name__in=['ENGINEER', 'AMC ADMIN']
+                ).select_related('user').distinct(),
                 'current_filters': {
                     'status': self.request.GET.get('status', ''),
                     'type': self.request.GET.get('type', ''),
@@ -170,8 +181,8 @@ class ComplaintDetailView(LoginRequiredMixin, DetailView):
                     'can_delete': True,
                     'available_statuses': Status.objects.filter(is_active=True),
                     'engineers': UserProfile.objects.filter(
-                        role__name__icontains='engineer'
-                    ).select_related('user'),
+                        user__groups__name__in=['ENGINEER', 'AMC ADMIN']
+                    ).select_related('user').distinct(),
                 })
             elif user.profile.is_engineer:
                 context.update({
@@ -272,9 +283,12 @@ class ComplaintUpdateView(LoginRequiredMixin, UpdateView):
 
 
 @login_required
+@require_POST
 def assign_complaint(request, pk):
     """Assign complaint to an engineer (AJAX endpoint)."""
-    if not (hasattr(request.user, 'profile') and request.user.profile.is_engineer):
+    # Allow Admin and AMC Admin to assign complaints
+    user_groups = request.user.groups.values_list('name', flat=True)
+    if not any(group in ['ADMIN', 'AMC ADMIN'] for group in user_groups):
         return HttpResponseForbidden()
     
     complaint = get_object_or_404(Complaint, pk=pk)
@@ -282,18 +296,64 @@ def assign_complaint(request, pk):
     
     if engineer_id:
         try:
-            engineer = UserProfile.objects.get(id=engineer_id, role__name__icontains='engineer').user
+            engineer = User.objects.get(
+                id=engineer_id,
+                groups__name__in=['ENGINEER', 'AMC ADMIN']
+            )
             complaint.assigned_to = engineer
+            
+            # Change status to 'Assigned'
+            previous_status = complaint.status
+            assigned_status = Status.objects.filter(name='Assigned', is_active=True).first()
+            if assigned_status:
+                complaint.status = assigned_status
+                
             complaint.save()
+            
+            # Create status history
+            from complaints.models import StatusHistory
+            StatusHistory.objects.create(
+                complaint=complaint,
+                previous_status=previous_status,
+                new_status=complaint.status,
+                changed_by=request.user,
+                notes=f"Assigned to {engineer.get_full_name() or engineer.username}"
+            )
             
             return JsonResponse({
                 'success': True,
-                'message': f'Complaint assigned to {engineer.get_full_name() or engineer.username}'
+                'message': f'Complaint assigned to {engineer.get_full_name() or engineer.username}',
+                'status': complaint.status.name
             })
-        except UserProfile.DoesNotExist:
-            return JsonResponse({'success': False, 'message': 'Engineer not found'})
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Engineer not found'})
     
-    return JsonResponse({'success': False, 'message': 'Invalid request'})
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
+@login_required
+@require_POST
+def update_priority(request, pk):
+    """Update complaint priority (AJAX endpoint)."""
+    # Allow Admin and AMC Admin to update priority
+    user_groups = request.user.groups.values_list('name', flat=True)
+    if not any(group in ['ADMIN', 'AMC ADMIN'] for group in user_groups):
+        return HttpResponseForbidden()
+    
+    complaint = get_object_or_404(Complaint, pk=pk)
+    new_priority = request.POST.get('priority')
+    
+    if new_priority and new_priority in ['low', 'medium', 'high', 'critical']:
+        old_priority = complaint.urgency
+        complaint.urgency = new_priority
+        complaint.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Priority updated from {old_priority} to {new_priority}',
+        })
+    else:
+        return JsonResponse({'success': False, 'error': 'Invalid priority specified'})
 
 
 # Legacy function-based view for backward compatibility

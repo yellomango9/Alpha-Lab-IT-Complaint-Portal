@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Complaint - Alpha Lab IT Complaint Portal{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Edit Complaint #{{ complaint.id }}</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                {{ form.errors }}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.title.id_for_label }}">Title</label>
+                                    {{ form.title }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.complaint_type.id_for_label }}">Type</label>
+                                    {{ form.complaint_type }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.description.id_for_label }}">Description</label>
+                            {{ form.description }}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.priority.id_for_label }}">Priority</label>
+                                    {{ form.priority }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.status.id_for_label }}">Status</label>
+                                    {{ form.status }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if form.attachment %}
+                        <div class="form-group mb-3">
+                            <label for="{{ form.attachment.id_for_label }}">Attachment</label>
+                            {{ form.attachment }}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">Update Complaint</button>
+                            <a href="{% url 'complaints:detail' complaint.id %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

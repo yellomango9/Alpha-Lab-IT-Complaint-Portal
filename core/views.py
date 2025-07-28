@@ -8,8 +8,9 @@ from django.contrib import messages
 from django.db.models import Count, Q
 from django.utils import timezone
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
+from django.utils.decorators import method_decorator
 import json
 from datetime import timedelta
 
@@ -29,7 +30,7 @@ class CustomLoginView(LoginView):
     redirect_authenticated_user = True
     
     # Define allowed groups for login
-    ALLOWED_GROUPS = ['Admin', 'AMC Admin', 'Engineer']
+    ALLOWED_GROUPS = ['Admin', 'AMC Admin', 'Engineer', 'ADMIN', 'AMC ADMIN', 'ENGINEER']
     
     def form_valid(self, form):
         """Validate user credentials and check group membership."""
@@ -60,16 +61,23 @@ class CustomLoginView(LoginView):
     
     def get_success_url(self):
         """Redirect based on user type after successful login."""
+        # Handle next parameter first
+        next_page = self.get_redirect_url()
+        if next_page:
+            return next_page
+            
         user = self.request.user
         
         # Check user groups to determine redirect
-        if user.groups.filter(name='AMC Admin').exists() or user.is_superuser:
-            return '/core/admin/'
-        elif user.groups.filter(name__in=['Engineer', 'Admin']).exists() or user.is_staff:
-            return '/core/engineer/'
+        if user.groups.filter(name__in=['ADMIN']).exists() or user.is_superuser:
+            return '/admin-portal/'
+        elif user.groups.filter(name__in=['AMC ADMIN']).exists():
+            return '/amc-admin/'
+        elif user.groups.filter(name__in=['ENGINEER']).exists() or user.is_staff:
+            return '/engineer/'
         else:
             # Default to engineer dashboard for any authenticated staff
-            return '/core/engineer/'
+            return '/engineer/'
     
     def form_invalid(self, form):
         """Handle invalid login attempts with proper error messages."""
@@ -102,32 +110,64 @@ class CustomLoginView(LoginView):
         return super().form_invalid(form)
 
 
+@method_decorator(ensure_csrf_cookie, name='dispatch')
 class DashboardView(LoginRequiredMixin, TemplateView):
     """Dashboard view showing user statistics and recent activity."""
     template_name = 'core/dashboard.html'
     
+    def get_template_names(self):
+        """Return different templates based on user role."""
+        user = self.request.user
+        user_groups = user.groups.values_list('name', flat=True)
+        
+        if 'AMC ADMIN' in user_groups:
+            return ['core/amc_admin_dashboard.html']
+        elif 'ADMIN' in user_groups:
+            return ['core/admin_dashboard.html']
+        else:
+            return ['core/dashboard.html']
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
+        user_groups = user.groups.values_list('name', flat=True)
         
-        # Get user's complaints statistics
-        user_complaints = Complaint.objects.filter(user=user)
-        
-        context.update({
-            'total_complaints': user_complaints.count(),
-            'open_complaints': user_complaints.filter(status__is_closed=False).count(),
-            'resolved_complaints': user_complaints.filter(status__is_closed=True).count(),
-            'recent_complaints': user_complaints[:5],
-        })
-        
-        # If user is engineer/admin, show assigned complaints
-        if hasattr(user, 'profile') and user.profile.is_engineer:
-            assigned_complaints = Complaint.objects.filter(assigned_to=user)
+        # AMC Admin specific context
+        if 'AMC ADMIN' in user_groups:
+            from django.contrib.auth.models import User
+            from complaints.models import Complaint
+            
+            # Get all complaints for AMC admin
+            all_complaints = Complaint.objects.all()
+            
+            # Get engineers (users in Engineer group)
+            engineers = User.objects.filter(groups__name='ENGINEER')
+            
             context.update({
-                'assigned_complaints': assigned_complaints.count(),
-                'pending_assignments': assigned_complaints.filter(status__is_closed=False).count(),
-                'recent_assignments': assigned_complaints[:5],
+                'total_complaints': all_complaints.count(),
+                'total_issues': all_complaints.filter(status__is_closed=False).count(),
+                'complaints': all_complaints.order_by('-created_at'),
+                'engineers': engineers,
             })
+        else:
+            # Regular user context
+            user_complaints = Complaint.objects.filter(user=user)
+            
+            context.update({
+                'total_complaints': user_complaints.count(),
+                'open_complaints': user_complaints.filter(status__is_closed=False).count(),
+                'resolved_complaints': user_complaints.filter(status__is_closed=True).count(),
+                'recent_complaints': user_complaints[:5],
+            })
+            
+            # If user is engineer/admin, show assigned complaints
+            if hasattr(user, 'profile') and user.profile.is_engineer:
+                assigned_complaints = Complaint.objects.filter(assigned_to=user)
+                context.update({
+                    'assigned_complaints': assigned_complaints.count(),
+                    'pending_assignments': assigned_complaints.filter(status__is_closed=False).count(),
+                    'recent_assignments': assigned_complaints[:5],
+                })
         
         return context
 
@@ -139,7 +179,21 @@ class ProfileView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile, created = UserProfile.objects.get_or_create(user=self.request.user)
-        context['profile'] = profile
+        
+        # Get complaint counts
+        user_complaints = self.request.user.complaints if hasattr(self.request.user, 'complaints') else []
+        if user_complaints:
+            open_complaints_count = user_complaints.filter(status__is_closed=False).count()
+            resolved_complaints_count = user_complaints.filter(status__is_closed=True).count()
+        else:
+            open_complaints_count = 0
+            resolved_complaints_count = 0
+        
+        context.update({
+            'profile': profile,
+            'open_complaints_count': open_complaints_count,
+            'resolved_complaints_count': resolved_complaints_count,
+        })
         return context
 
 
@@ -382,6 +436,7 @@ def get_user_complaints(request):
                 'created_at': complaint.created_at.strftime('%Y-%m-%d %H:%M'),
                 'is_resolved': complaint.is_resolved,
                 'days_open': complaint.days_open,
+                'assigned_to': (complaint.assigned_to.get_full_name() or complaint.assigned_to.username) if complaint.assigned_to else 'Unassigned',
                 'staff_closing_remark': closing_details.staff_closing_remark if closing_details else None,
                 'closed_by_staff': closing_details.closed_by_staff.get_full_name() if closing_details else None,
                 'staff_closed_at': closing_details.staff_closed_at.strftime('%b %d, %Y at %I:%M %p') if closing_details else None,
@@ -397,13 +452,13 @@ def get_user_complaints(request):
 @normal_user_required
 def get_complaint_detail(request, complaint_id):
     """AJAX view to get detailed complaint information."""
-    user_data = request.session.get('normal_user', {})
-    user_id = user_data.get('user_id')
-    
-    if not user_id:
-        return JsonResponse({'success': False, 'error': 'User not authenticated'})
-    
     try:
+        user_data = request.session.get('normal_user', {})
+        user_id = user_data.get('user_id')
+        
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'User not authenticated'})
+        
         user = User.objects.get(id=user_id)
         complaint = get_object_or_404(Complaint, id=complaint_id, user=user)
         
@@ -416,6 +471,47 @@ def get_complaint_detail(request, complaint_id):
                 'size': attachment.file_size_formatted,
                 'uploaded_at': attachment.uploaded_at.strftime('%Y-%m-%d %H:%M')
             })
+        
+        # Check if complaint is resolved but not closed by user
+        can_close = complaint.status.name.lower() == 'resolved' and not complaint.status.is_closed
+        
+        # Check if feedback exists (handle both OneToOneField access methods)
+        has_feedback = False
+        try:
+            has_feedback = complaint.user_feedback is not None
+        except:
+            has_feedback = False
+        
+        # Get all remarks for this complaint
+        remarks = []
+        try:
+            for remark in complaint.user_remarks.all():
+                remarks.append({
+                    'id': remark.id,
+                    'remark': remark.remark,
+                    'created_at': remark.created_at.strftime('%Y-%m-%d %H:%M'),
+                    'created_by': remark.created_by.get_full_name() or remark.created_by.username
+                })
+        except Exception as e:
+            pass
+        
+        # Get status history
+        status_history = []
+        try:
+            for history in complaint.status_history.all().order_by('changed_at'):
+                status_history.append({
+                    'status': history.new_status.name,
+                    'changed_at': history.changed_at.strftime('%Y-%m-%d %H:%M'),
+                    'changed_by': history.changed_by.get_full_name() if history.changed_by else 'System',
+                    'notes': history.notes
+                })
+        except Exception as e:
+            pass
+        
+        # Get staff resolution details (if complaint is resolved by staff)
+        staff_closing_remark = None
+        closed_by_staff = None
+        staff_closed_at = None
         
         complaint_data = {
             'id': complaint.id,
@@ -431,18 +527,31 @@ def get_complaint_detail(request, complaint_id):
             'is_resolved': complaint.is_resolved,
             'days_open': complaint.days_open,
             'attachments': attachments,
-            'assigned_to': complaint.assigned_to.get_full_name() if complaint.assigned_to else 'Unassigned'
+            'assigned_to': (complaint.assigned_to.get_full_name() or complaint.assigned_to.username) if complaint.assigned_to else 'Unassigned',
+            'can_close': can_close,
+            'is_closed': complaint.status.is_closed,
+            'has_feedback': has_feedback,
+            'remarks': remarks,
+            'status_history': status_history,
+            'staff_closing_remark': staff_closing_remark,
+            'closed_by_staff': closed_by_staff,
+            'staff_closed_at': staff_closed_at
         }
         
         return JsonResponse({'success': True, 'complaint': complaint_data})
         
     except User.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'User not found'})
+    except Complaint.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Complaint not found'})
+    except Exception as e:
+        print(f"Error in get_complaint_detail: {str(e)}")
+        return JsonResponse({'success': False, 'error': 'An error occurred while loading complaint details'})
 
 
 @normal_user_required
 def handle_complaint_response(request, complaint_id):
-    """Handle user response when staff closes a complaint."""
+    """Handle user response when staff resolves a complaint."""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Method not allowed'})
     
@@ -455,54 +564,19 @@ def handle_complaint_response(request, complaint_id):
     except (User.DoesNotExist, Complaint.DoesNotExist):
         return JsonResponse({'success': False, 'error': 'Complaint not found'})
     
-    # Check if complaint has closing details
-    closing_details = getattr(complaint, 'closing_details', None)
-    if not closing_details:
-        return JsonResponse({'success': False, 'error': 'Complaint not closed by staff yet'})
+    # Check if complaint is resolved
+    if complaint.status.name.lower() != 'resolved':
+        return JsonResponse({'success': False, 'error': 'Complaint must be resolved before you can close it'})
     
     action = request.POST.get('action')
     
-    if action == 'satisfied':
-        # User is satisfied, ask for feedback
-        closing_details.user_satisfied = True
-        closing_details.user_closed_at = timezone.now()
-        closing_details.save()
-        
-        return JsonResponse({
-            'success': True, 
-            'action': 'feedback',
-            'message': 'Thank you! Please provide your feedback.'
-        })
-    
-    elif action == 'not_satisfied':
-        # User is not satisfied, collect remark
-        user_remark = request.POST.get('user_remark', '').strip()
-        if not user_remark:
-            return JsonResponse({'success': False, 'error': 'Please provide a remark about why you are not satisfied'})
-        
-        closing_details.user_satisfied = False
-        closing_details.user_closing_remark = user_remark
-        closing_details.save()
-        
-        # Reopen the complaint
-        open_status = Status.objects.filter(is_active=True, is_closed=False).order_by('order').first()
-        if open_status:
-            complaint.status = open_status
-            complaint.resolved_at = None
-            complaint.save()
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Your complaint has been reopened. We will review your concerns.'
-        })
-    
-    elif action == 'submit_feedback':
-        # Submit final feedback
+    if action == 'close_with_feedback':
+        # User wants to close the complaint with feedback
         rating = request.POST.get('rating')
         feedback_text = request.POST.get('feedback_text', '').strip()
         
-        if not rating or not rating.isdigit() or int(rating) not in range(1, 6):
-            return JsonResponse({'success': False, 'error': 'Please provide a valid rating (1-5)'})
+        if not rating or not rating.isdigit() or int(rating) < 1 or int(rating) > 5:
+            return JsonResponse({'success': False, 'error': 'Please provide a valid rating (1-5 stars)'})
         
         from complaints.models import ComplaintFeedback
         
@@ -510,20 +584,91 @@ def handle_complaint_response(request, complaint_id):
         feedback, created = ComplaintFeedback.objects.get_or_create(
             complaint=complaint,
             defaults={
-                'user': user,
                 'rating': int(rating),
-                'feedback_text': feedback_text
+                'feedback_text': feedback_text,
+                'is_satisfied': True
             }
         )
-        
         if not created:
             feedback.rating = int(rating)
             feedback.feedback_text = feedback_text
+            feedback.is_satisfied = True
             feedback.save()
+        
+        # Mark as closed
+        closed_status = Status.objects.filter(is_active=True, is_closed=True, name__icontains='closed').first()
+        if not closed_status:
+            closed_status = Status.objects.filter(is_active=True, is_closed=True).first()
+        
+        if closed_status:
+            # Store previous status before changing
+            previous_status = complaint.status
+            complaint.status = closed_status
+            complaint.save()
+            
+            # Create status history
+            from complaints.models import StatusHistory
+            StatusHistory.objects.create(
+                complaint=complaint,
+                previous_status=previous_status,
+                new_status=closed_status,
+                changed_by=user,
+                notes=f"Closed by user with {rating}-star rating"
+            )
         
         return JsonResponse({
             'success': True,
-            'message': 'Thank you for your feedback! Your complaint is now closed.'
+            'message': 'Thank you for your feedback! Your complaint has been closed successfully.'
+        })
+    
+    elif action == 'add_remark':
+        # User is not satisfied and wants to add a remark
+        remark_text = request.POST.get('remark_text', '').strip()
+        if not remark_text:
+            return JsonResponse({'success': False, 'error': 'Please provide a remark about why you are not satisfied'})
+        
+        # Add a remark
+        from complaints.models import ComplaintRemark
+        ComplaintRemark.objects.create(
+            complaint=complaint,
+            remark=remark_text,
+            created_by=user,
+            is_read_by_engineer=False
+        )
+        
+        # Change status back to "In Progress" to notify engineer
+        in_progress_status = Status.objects.filter(
+            is_active=True, 
+            is_closed=False,
+            name__icontains='progress'
+        ).first()
+        
+        if not in_progress_status:
+            in_progress_status = Status.objects.filter(
+                is_active=True, 
+                is_closed=False
+            ).exclude(name__icontains='open').first()
+            
+        if in_progress_status:
+            # Store previous status before changing
+            previous_status = complaint.status
+            complaint.status = in_progress_status
+            complaint.resolved_at = None  # Remove resolved timestamp
+            complaint.save()
+            
+            # Create status history
+            from complaints.models import StatusHistory
+            StatusHistory.objects.create(
+                complaint=complaint,
+                previous_status=previous_status,
+                new_status=in_progress_status,
+                changed_by=user,
+                notes=f"User not satisfied - reopened with remark"
+            )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Your remark has been added and the engineer has been notified. The complaint is now back in progress.'
         })
     
     return JsonResponse({'success': False, 'error': 'Invalid action'})

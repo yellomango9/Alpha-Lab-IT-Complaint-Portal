@@ -126,7 +126,7 @@ class UserProfile(models.Model):
         Returns:
             bool: True if user belongs to 'Engineer' or 'AMC Admin' groups
         """
-        return self.user.groups.filter(name__in=['Engineer', 'AMC Admin']).exists()
+        return self.user.groups.filter(name__in=['ENGINEER', 'AMC ADMIN']).exists()
 
     @property
     def is_admin(self):
@@ -137,7 +137,7 @@ class UserProfile(models.Model):
             bool: True if user belongs to 'Admin' or 'AMC Admin' groups, or is Django staff
         """
         return (
-            self.user.groups.filter(name__in=['Admin', 'AMC Admin']).exists() or 
+            self.user.groups.filter(name__in=['ADMIN', 'AMC ADMIN']).exists() or 
             self.user.is_staff
         )
 
