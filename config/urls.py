@@ -24,7 +24,7 @@ from core.views import CustomLoginView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', RedirectView.as_view(url='/dashboard/', permanent=False)),
+    path('', RedirectView.as_view(url='/core/user/login/', permanent=False)),
     
     # Custom authentication URLs
     path('login/', CustomLoginView.as_view(), name='login'),
@@ -34,6 +34,7 @@ urlpatterns = [
     
     # App URLs
     path('dashboard/', include('reports.urls')),
+    path('engineer/', include('core.urls')),
     path('complaints/', include('complaints.urls')),
     path('core/', include('core.urls')),
     path('faq/', include('faq.urls')),

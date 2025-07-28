@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMC Admin Dashboard - IT Complaint Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .main-container {
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: none;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 1.5rem;
+            margin: 0;
+        }
+
+        .section-body {
+            padding: 2rem;
+        }
+
+        .complaint-row {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary-color);
+            transition: all 0.3s ease;
+        }
+
+        .complaint-row:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .urgency-low { border-left-color: #28a745 !important; }
+        .urgency-medium { border-left-color: #ffc107 !important; }
+        .urgency-high { border-left-color: #fd7e14 !important; }
+        .urgency-critical { border-left-color: #dc3545 !important; }
+
+        .filters-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+
+        .stats-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .priority-select, .engineer-select {
+            width: 120px;
+            font-size: 0.875rem;
+        }
+
+        .nav-pills .nav-link {
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            margin-right: 0.5rem;
+            font-weight: 600;
+        }
+
+        .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        .bulk-actions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .table-responsive {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .table th {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-cogs me-2"></i>
+                AMC Admin Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-shield me-1"></i>
+                        {{ user.get_full_name|default:user.username }}
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'logout' %}">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid main-container">
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="stats-card">
+                    <div class="stats-number">{{ total_complaints }}</div>
+                    <div class="text-muted">Open Complaints</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stats-card">
+                    <div class="stats-number text-danger">{{ total_issues }}</div>
+                    <div class="text-muted">Issues (>2 days)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-card">
+            <h5 class="mb-3"><i class="fas fa-filter me-2"></i>Filters & Actions</h5>
+            <form method="GET" id="filterForm">
+                <div class="row">
+                    <div class="col-md-2">
+                        <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            {% for type in complaint_types %}
+                                <option value="{{ type.id }}" {% if current_type == type.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ type.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Status</option>
+                            {% for status in statuses %}
+                                <option value="{{ status.id }}" {% if current_status == status.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ status.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="engineer" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Engineers</option>
+                            <option value="unassigned" {% if current_engineer == "unassigned" %}selected{% endif %}>Unassigned</option>
+                            {% for engineer in engineers %}
+                                <option value="{{ engineer.id }}" {% if current_engineer == engineer.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ engineer.get_full_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="department" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Departments</option>
+                            {% for dept in departments %}
+                                <option value="{{ dept.id }}" {% if current_department == dept.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ dept.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{% url 'core:download_complaints_report' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" 
+                           class="btn btn-success btn-sm">
+                            <i class="fas fa-download me-1"></i>Export CSV
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="clearFilters()">
+                            <i class="fas fa-times me-1"></i>Clear Filters
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="bulk-actions" id="bulkActions">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <span id="selectedCount">0</span> complaints selected
+                </div>
+                <div class="col-md-9">
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" style="width: 150px;" id="bulkEngineer">
+                            <option value="">Assign Engineer...</option>
+                            {% for engineer in engineers %}
+                                <option value="{{ engineer.id }}">{{ engineer.get_full_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <select class="form-select form-select-sm" style="width: 150px;" id="bulkPriority">
+                            <option value="">Set Priority...</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                        <button class="btn btn-primary btn-sm" onclick="applyBulkAction('assign_engineer')">
+                            <i class="fas fa-user me-1"></i>Assign
+                        </button>
+                        <button class="btn btn-warning btn-sm" onclick="applyBulkAction('update_priority')">
+                            <i class="fas fa-exclamation me-1"></i>Set Priority
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-pills justify-content-center mb-4" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="complaints-tab" data-bs-toggle="pill" data-bs-target="#complaints" type="button" role="tab">
+                    <i class="fas fa-list me-2"></i>All Open Complaints ({{ total_complaints }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link text-danger" id="issues-tab" data-bs-toggle="pill" data-bs-target="#issues" type="button" role="tab">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Issues ({{ total_issues }})
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabContent">
+            <!-- All Complaints Tab -->
+            <div class="tab-pane fade show active" id="complaints" role="tabpanel">
+                <div class="section-card">
+                    <div class="section-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4><i class="fas fa-ticket-alt me-2"></i>Open Complaints</h4>
+                            <div>
+                                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                <label for="selectAll" class="ms-2">Select All</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-body">
+                        {% if complaints %}
+                            {% for complaint in complaints %}
+                                <div class="complaint-row urgency-{{ complaint.urgency }}" id="complaint-{{ complaint.id }}">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-1">
+                                            <input type="checkbox" class="complaint-checkbox" value="{{ complaint.id }}" onchange="updateBulkActions()">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <strong>#{{ complaint.id }}</strong><br>
+                                            <small class="text-muted">{{ complaint.type.name }}</small>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="fw-bold">{{ complaint.user.get_full_name|default:complaint.user.username }}</div>
+                                            <small class="text-muted">{{ complaint.user.profile.department.name|default:"No Dept" }}</small>
+                                            <div class="mt-1">
+                                                <small>{{ complaint.description|truncatechars:80 }}</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <select class="form-select priority-select" onchange="updatePriority({{ complaint.id }}, this.value)">
+                                                <option value="low" {% if complaint.urgency == 'low' %}selected{% endif %}>Low</option>
+                                                <option value="medium" {% if complaint.urgency == 'medium' %}selected{% endif %}>Medium</option>
+                                                <option value="high" {% if complaint.urgency == 'high' %}selected{% endif %}>High</option>
+                                                <option value="critical" {% if complaint.urgency == 'critical' %}selected{% endif %}>Critical</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <select class="form-select engineer-select" onchange="assignEngineer({{ complaint.id }}, this.value)">
+                                                <option value="">Unassigned</option>
+                                                {% for engineer in engineers %}
+                                                    <option value="{{ engineer.id }}" {% if complaint.assigned_to.id == engineer.id %}selected{% endif %}>
+                                                        {{ engineer.get_full_name|truncatechars:15 }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <div>
+                                                    <span class="badge bg-primary">{{ complaint.status.name }}</span>
+                                                    <div><small class="text-muted">{{ complaint.created_at|timesince }} ago</small></div>
+                                                </div>
+                                                <a href="{% url 'core:complaint_detail' complaint.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-clipboard-check fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No complaints found</h5>
+                                <p class="text-muted">All complaints matching your filters have been resolved!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Issues Tab -->
+            <div class="tab-pane fade" id="issues" role="tabpanel">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h4 class="text-white"><i class="fas fa-exclamation-triangle me-2"></i>Issues (Unresolved > 2 Days)</h4>
+                    </div>
+                    <div class="section-body">
+                        {% if issues %}
+                            {% for complaint in issues %}
+                                <div class="complaint-row urgency-{{ complaint.urgency }} border-danger">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2">
+                                            <strong class="text-danger">#{{ complaint.id }}</strong><br>
+                                            <small class="text-muted">{{ complaint.type.name }}</small>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="fw-bold">{{ complaint.user.get_full_name|default:complaint.user.username }}</div>
+                                            <small class="text-muted">{{ complaint.user.profile.department.name|default:"No Dept" }}</small>
+                                            <div class="mt-1">
+                                                <small>{{ complaint.description|truncatechars:80 }}</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <span class="badge bg-danger">{{ complaint.days_open }} days old</span>
+                                            <div><small>{{ complaint.get_urgency_display }}</small></div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            {% if complaint.assigned_to %}
+                                                <span class="badge bg-success">{{ complaint.assigned_to.get_full_name }}</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">Unassigned</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-2">
+                                            <span class="badge bg-secondary">{{ complaint.status.name }}</span>
+                                        </div>
+                                        <div class="col-md-1">
+                                            <a href="{% url 'core:complaint_detail' complaint.id %}" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                <h5 class="text-success">No Issues!</h5>
+                                <p class="text-muted">All complaints are being handled within reasonable time.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Update complaint priority
+        function updatePriority(complaintId, priority) {
+            fetch(`/core/complaint/${complaintId}/update-priority/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: `priority=${priority}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    // Update visual priority indicator
+                    const row = document.getElementById(`complaint-${complaintId}`);
+                    row.className = row.className.replace(/urgency-\w+/, `urgency-${priority}`);
+                } else {
+                    showAlert('danger', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Network error occurred.');
+            });
+        }
+
+        // Assign engineer to complaint
+        function assignEngineer(complaintId, engineerId) {
+            fetch(`/core/complaint/${complaintId}/assign-engineer/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: `engineer_id=${engineerId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                } else {
+                    showAlert('danger', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Network error occurred.');
+            });
+        }
+
+        // Bulk actions functionality
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.complaint-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+            
+            updateBulkActions();
+        }
+
+        function updateBulkActions() {
+            const checkedBoxes = document.querySelectorAll('.complaint-checkbox:checked');
+            const bulkActions = document.getElementById('bulkActions');
+            const selectedCount = document.getElementById('selectedCount');
+            
+            selectedCount.textContent = checkedBoxes.length;
+            
+            if (checkedBoxes.length > 0) {
+                bulkActions.style.display = 'block';
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+
+        function applyBulkAction(action) {
+            const checkedBoxes = document.querySelectorAll('.complaint-checkbox:checked');
+            const complaintIds = Array.from(checkedBoxes).map(cb => cb.value);
+            
+            if (complaintIds.length === 0) {
+                showAlert('warning', 'Please select complaints first.');
+                return;
+            }
+            
+            let extraData = '';
+            if (action === 'assign_engineer') {
+                const engineerId = document.getElementById('bulkEngineer').value;
+                if (!engineerId) {
+                    showAlert('warning', 'Please select an engineer.');
+                    return;
+                }
+                extraData = `&engineer_id=${engineerId}`;
+            } else if (action === 'update_priority') {
+                const priority = document.getElementById('bulkPriority').value;
+                if (!priority) {
+                    showAlert('warning', 'Please select a priority.');
+                    return;
+                }
+                extraData = `&priority=${priority}`;
+            }
+            
+            const formData = `action=${action}&complaint_ids[]=${complaintIds.join('&complaint_ids[]=')}${extraData}`;
+            
+            fetch('/core/bulk-actions/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    location.reload(); // Reload to show changes
+                } else {
+                    showAlert('danger', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Network error occurred.');
+            });
+        }
+
+        function clearFilters() {
+            window.location.href = window.location.pathname;
+        }
+
+        // Show alert function
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                if (alertDiv && alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Add CSRF token to all forms
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                if (!form.querySelector('[name=csrfmiddlewaretoken]')) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrfmiddlewaretoken';
+                    csrfInput.value = '{{ csrf_token }}';
+                    form.appendChild(csrfInput);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

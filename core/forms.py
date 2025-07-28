@@ -1,5 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+import re
 from .models import UserProfile, Department
 
 
@@ -125,3 +127,59 @@ class UserRegistrationForm(forms.ModelForm):
             )
         
         return user
+
+
+class NormalUserLoginForm(forms.Form):
+    """Form for normal user login using name and main_portal_id."""
+    
+    name = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your full name',
+            'required': True
+        }),
+        help_text="Your full name as registered in the main portal"
+    )
+    
+    main_portal_id = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your portal ID',
+            'required': True
+        }),
+        help_text="Your unique ID from the main Alpha Labs portal"
+    )
+    
+    department = forms.ModelChoiceField(
+        queryset=Department.objects.filter(is_active=True),
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'required': True
+        }),
+        help_text="Select your department"
+    )
+    
+    def clean_name(self):
+        name = self.cleaned_data.get('name', '').strip()
+        if not name:
+            raise ValidationError("Name is required.")
+        if len(name) < 2:
+            raise ValidationError("Name must be at least 2 characters long.")
+        return name
+    
+    def clean_main_portal_id(self):
+        portal_id = self.cleaned_data.get('main_portal_id', '').strip()
+        
+        if not portal_id:
+            raise ValidationError("Portal ID is required.")
+        
+        # Simple format validation: alphanumeric characters only
+        if not re.match(r'^[a-zA-Z0-9]+$', portal_id):
+            raise ValidationError("Portal ID can only contain letters and numbers.")
+        
+        if len(portal_id) < 3:
+            raise ValidationError("Portal ID must be at least 3 characters long.")
+        
+        return portal_id

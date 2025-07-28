@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complaint #{{ complaint.id }} - IT Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .main-container {
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .detail-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .detail-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem;
+        }
+
+        .detail-body {
+            padding: 2rem;
+        }
+
+        .info-row {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-value {
+            color: #6c757d;
+        }
+
+        .urgency-low { background-color: #d4edda; color: #155724; }
+        .urgency-medium { background-color: #fff3cd; color: #856404; }
+        .urgency-high { background-color: #f8d7da; color: #721c24; }
+        .urgency-critical { background-color: #721c24; color: white; }
+
+        .action-buttons {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            border-top: 1px solid #dee2e6;
+            padding: 1.5rem;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .remark-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--info-color);
+        }
+
+        .attachment-item {
+            background: #e9ecef;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'core:engineer_dashboard' %}">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back to Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i>
+                        {{ user.get_full_name|default:user.username }}
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'logout' %}">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container main-container">
+        <!-- Complaint Details -->
+        <div class="detail-card">
+            <div class="detail-header">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h2 class="mb-2">
+                            <i class="fas fa-ticket-alt me-2"></i>
+                            Complaint #{{ complaint.id }}
+                        </h2>
+                        <p class="mb-0 opacity-75">{{ complaint.type.name }} - {{ complaint.get_urgency_display }}</p>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-{% if complaint.status.is_closed %}success{% else %}warning{% endif %} fs-6">
+                            {{ complaint.status.name }}
+                        </span>
+                        <div class="mt-2">
+                            <a href="{% url 'core:download_complaint_pdf' complaint.id %}" class="btn btn-light btn-sm">
+                                <i class="fas fa-download me-1"></i>Download PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="detail-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-row">
+                            <div class="info-label">Complaint Type</div>
+                            <div class="info-value">{{ complaint.type.name }}</div>
+                        </div>
+                        
+                        <div class="info-row">
+                            <div class="info-label">Complaint ID</div>
+                            <div class="info-value">#{{ complaint.id }}</div>
+                        </div>
+                        
+                        <div class="info-row">
+                            <div class="info-label">User Who Complained</div>
+                            <div class="info-value">{{ complaint.user.get_full_name|default:complaint.user.username }}</div>
+                        </div>
+                        
+                        <div class="info-row">
+                            <div class="info-label">User's Department</div>
+                            <div class="info-value">{{ complaint.user.profile.department.name|default:"No Department" }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="info-row">
+                            <div class="info-label">Status</div>
+                            <div class="info-value">
+                                <span class="badge bg-{% if complaint.status.is_closed %}success{% else %}primary{% endif %}">
+                                    {{ complaint.status.name }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-row">
+                            <div class="info-label">Assigned Engineer</div>
+                            <div class="info-value">
+                                {% if complaint.assigned_to %}
+                                    {{ complaint.assigned_to.get_full_name }}
+                                {% else %}
+                                    <span class="text-warning">Unassigned</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="info-row">
+                            <div class="info-label">Complaint Date/Time</div>
+                            <div class="info-value">{{ complaint.created_at|date:"M d, Y H:i" }}</div>
+                        </div>
+                        
+                        {% if complaint.resolved_at %}
+                        <div class="info-row">
+                            <div class="info-label">Resolved Date/Time</div>
+                            <div class="info-value">{{ complaint.resolved_at|date:"M d, Y H:i" }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if closing_details and closing_details.user_closed_at %}
+                        <div class="info-row">
+                            <div class="info-label">User Closed Date/Time</div>
+                            <div class="info-value">{{ closing_details.user_closed_at|date:"M d, Y H:i" }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="info-row">
+                    <div class="info-label">Priority Level</div>
+                    <div class="info-value">
+                        <span class="badge urgency-{{ complaint.urgency }}">{{ complaint.get_urgency_display }}</span>
+                    </div>
+                </div>
+                
+                <div class="info-row">
+                    <div class="info-label">Complaint Description</div>
+                    <div class="info-value">
+                        <div class="p-3 bg-light rounded">
+                            {{ complaint.description|linebreaks }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Engineer Remarks -->
+                {% if closing_details %}
+                <div class="info-row">
+                    <div class="info-label">Engineer Remark</div>
+                    <div class="info-value">
+                        <div class="p-3 bg-success bg-opacity-10 rounded border border-success border-opacity-25">
+                            <strong>{{ closing_details.closed_by_staff.get_full_name }}</strong> 
+                            <small class="text-muted">({{ closing_details.staff_closed_at|date:"M d, Y H:i" }})</small>
+                            <div class="mt-2">{{ closing_details.staff_closing_remark|linebreaks }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Attachments -->
+                {% if attachments %}
+                <div class="info-row">
+                    <div class="info-label">Attachments</div>
+                    <div class="info-value">
+                        {% for attachment in attachments %}
+                            <div class="attachment-item">
+                                <div>
+                                    <i class="fas fa-file me-2"></i>
+                                    {{ attachment.file.name|slice:"19:" }}
+                                    <small class="text-muted">({{ attachment.file.size|filesizeformat }})</small>
+                                </div>
+                                <a href="{{ attachment.file.url }}" class="btn btn-sm btn-outline-primary" download>
+                                    <i class="fas fa-download"></i>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Remarks History -->
+                {% if remarks %}
+                <div class="info-row">
+                    <div class="info-label">Remarks History</div>
+                    <div class="info-value">
+                        {% for remark in remarks %}
+                            <div class="remark-item">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <strong>{{ remark.user.get_full_name|default:remark.user.username }}</strong>
+                                    <small class="text-muted">{{ remark.created_at|date:"M d, Y H:i" }}</small>
+                                </div>
+                                <div>{{ remark.text|linebreaks }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Action Buttons (only if complaint is not closed) -->
+        {% if not complaint.status.is_closed %}
+        <div class="action-buttons">
+            <div class="row">
+                <div class="col-md-6">
+                    <form method="post" action="{% url 'core:update_complaint_status' complaint.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="resolve">
+                        <div class="mb-3">
+                            <label for="staff_remark" class="form-label">Closing Remark (Required)</label>
+                            <textarea class="form-control" id="staff_remark" name="staff_remark" rows="3" 
+                                placeholder="Provide details about how the issue was resolved..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success me-2">
+                            <i class="fas fa-check-circle me-2"></i>Mark as Resolved
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="col-md-6">
+                    <form method="post" action="{% url 'core:update_complaint_status' complaint.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_status">
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Update Status</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">Select new status...</option>
+                                {% for status in status_options %}
+                                    {% if status.id != complaint.status.id %}
+                                        <option value="{{ status.id }}">{{ status.name }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="remark" class="form-label">Add Remark</label>
+                            <textarea class="form-control" id="remark" name="remark" rows="2" 
+                                placeholder="Optional remark about status change..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-edit me-2"></i>Update Status
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

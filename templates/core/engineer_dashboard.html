@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engineer Dashboard - IT Complaint Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+        .main-container {
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: none;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 1.5rem;
+            margin: 0;
+        }
+
+        .section-header h4 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .section-body {
+            padding: 2rem;
+        }
+
+        .complaint-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .complaint-item:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .status-badge {
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .urgency-low { background-color: #d4edda; color: #155724; }
+        .urgency-medium { background-color: #fff3cd; color: #856404; }
+        .urgency-high { background-color: #f8d7da; color: #721c24; }
+        .urgency-critical { background-color: #721c24; color: white; }
+
+        .nav-pills .nav-link {
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            margin-right: 0.5rem;
+            font-weight: 600;
+        }
+
+        .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+
+        .stats-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .welcome-message {
+            background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-left: 4px solid var(--success-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-tools me-2"></i>
+                Engineer Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i>
+                        {{ user.get_full_name|default:user.username }}
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'logout' %}">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container main-container">
+        <!-- Welcome Message -->
+        <div class="welcome-message">
+            <h5 class="mb-1">
+                <i class="fas fa-hand-wave me-2"></i>
+                Welcome, {{ user.get_full_name|default:user.username }}!
+            </h5>
+            <p class="mb-0 text-muted">Manage IT complaints and provide technical support to users.</p>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-number">{{ all_count }}</div>
+                    <div class="text-muted">All Open Complaints</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-number">{{ assigned_count }}</div>
+                    <div class="text-muted">Assigned to Me</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-number">{{ closed_count }}</div>
+                    <div class="text-muted">Closed (Last 5 Days)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-pills justify-content-center mb-4" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="all-complaints-tab" data-bs-toggle="pill" data-bs-target="#all-complaints" type="button" role="tab">
+                    <i class="fas fa-list me-2"></i>All Open Complaints
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="assigned-tab" data-bs-toggle="pill" data-bs-target="#assigned-complaints" type="button" role="tab">
+                    <i class="fas fa-user-check me-2"></i>Assigned to Me
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="closed-tab" data-bs-toggle="pill" data-bs-target="#closed-complaints" type="button" role="tab">
+                    <i class="fas fa-check-circle me-2"></i>Closed Complaints
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabContent">
+            <!-- All Open Complaints Tab -->
+            <div class="tab-pane fade show active" id="all-complaints" role="tabpanel">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h4><i class="fas fa-exclamation-triangle me-2"></i>All Open Complaints ({{ all_count }})</h4>
+                    </div>
+                    <div class="section-body">
+                        {% if all_complaints %}
+                            {% for complaint in all_complaints %}
+                                <div class="complaint-item" onclick="location.href='{% url 'core:complaint_detail' complaint.id %}'">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-1">#{{ complaint.id }} - {{ complaint.title }}</h6>
+                                        <span class="badge bg-primary">{{ complaint.status.name }}</span>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        <span class="badge urgency-{{ complaint.urgency }}">{{ complaint.get_urgency_display }}</span>
+                                        <span class="badge bg-secondary">{{ complaint.type.name }}</span>
+                                        <span class="badge bg-info">{{ complaint.user.profile.department.name|default:"No Dept" }}</span>
+                                        {% if complaint.assigned_to %}
+                                            <span class="badge bg-success">{{ complaint.assigned_to.get_full_name }}</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">Unassigned</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted small">
+                                        <span><i class="fas fa-user me-1"></i>{{ complaint.user.get_full_name|default:complaint.user.username }}</span>
+                                        <span><i class="fas fa-calendar-alt me-1"></i>{{ complaint.created_at|date:"M d, Y H:i" }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-clipboard-check fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No open complaints</h5>
+                                <p class="text-muted">All complaints have been resolved!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assigned Complaints Tab -->
+            <div class="tab-pane fade" id="assigned-complaints" role="tabpanel">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h4><i class="fas fa-user-check me-2"></i>Complaints Assigned to Me ({{ assigned_count }})</h4>
+                    </div>
+                    <div class="section-body">
+                        {% if assigned_complaints %}
+                            {% for complaint in assigned_complaints %}
+                                <div class="complaint-item" onclick="location.href='{% url 'core:complaint_detail' complaint.id %}'">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-1">#{{ complaint.id }} - {{ complaint.title }}</h6>
+                                        <span class="badge bg-primary">{{ complaint.status.name }}</span>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        <span class="badge urgency-{{ complaint.urgency }}">{{ complaint.get_urgency_display }}</span>
+                                        <span class="badge bg-secondary">{{ complaint.type.name }}</span>
+                                        <span class="badge bg-info">{{ complaint.user.profile.department.name|default:"No Dept" }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted small">
+                                        <span><i class="fas fa-user me-1"></i>{{ complaint.user.get_full_name|default:complaint.user.username }}</span>
+                                        <span><i class="fas fa-calendar-alt me-1"></i>{{ complaint.created_at|date:"M d, Y H:i" }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No complaints assigned</h5>
+                                <p class="text-muted">You don't have any complaints assigned to you currently.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Closed Complaints Tab -->
+            <div class="tab-pane fade" id="closed-complaints" role="tabpanel">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h4><i class="fas fa-check-circle me-2"></i>Recently Closed Complaints ({{ closed_count }})</h4>
+                        <small>Showing complaints closed in the last 5 days</small>
+                    </div>
+                    <div class="section-body">
+                        {% if closed_complaints %}
+                            {% for complaint in closed_complaints %}
+                                <div class="complaint-item" onclick="location.href='{% url 'core:complaint_detail' complaint.id %}'">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-1">#{{ complaint.id }} - {{ complaint.title }}</h6>
+                                        <span class="badge bg-success">{{ complaint.status.name }}</span>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        <span class="badge urgency-{{ complaint.urgency }}">{{ complaint.get_urgency_display }}</span>
+                                        <span class="badge bg-secondary">{{ complaint.type.name }}</span>
+                                        <span class="badge bg-info">{{ complaint.user.profile.department.name|default:"No Dept" }}</span>
+                                        {% if complaint.assigned_to %}
+                                            <span class="badge bg-success">{{ complaint.assigned_to.get_full_name }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted small">
+                                        <span><i class="fas fa-user me-1"></i>{{ complaint.user.get_full_name|default:complaint.user.username }}</span>
+                                        <span><i class="fas fa-calendar-check me-1"></i>Resolved: {{ complaint.resolved_at|date:"M d, Y H:i" }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-archive fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No recently closed complaints</h5>
+                                <p class="text-muted">No complaints have been closed in the last 5 days.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

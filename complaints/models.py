@@ -269,4 +269,95 @@ class StatusHistory(models.Model):
         return f"Complaint #{self.complaint.id}: {self.previous_status} → {self.new_status}"
 
 
+class ComplaintFeedback(models.Model):
+    """
+    Model to store user feedback when they close a resolved complaint.
+    This helps track user satisfaction with the IT support.
+    """
+    complaint = models.OneToOneField(
+        Complaint, 
+        on_delete=models.CASCADE, 
+        related_name='complaint_feedback',
+        help_text="The complaint this feedback is for"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE,
+        help_text="User who provided the feedback"
+    )
+    rating = models.PositiveIntegerField(
+        choices=[(i, str(i)) for i in range(1, 6)],
+        help_text="Rating from 1 (unhappy) to 5 (very happy)"
+    )
+    feedback_text = models.TextField(
+        blank=True,
+        help_text="Optional feedback text from the user"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Complaint Feedback'
+        verbose_name_plural = 'Complaint Feedback'
+
+    def __str__(self):
+        return f"Feedback for Complaint #{self.complaint.id} - Rating: {self.rating}/5"
+
+    @property
+    def rating_text(self):
+        """Return human-readable rating text."""
+        ratings = {
+            1: 'Very Unhappy',
+            2: 'Unhappy', 
+            3: 'Neutral',
+            4: 'Happy',
+            5: 'Very Happy'
+        }
+        return ratings.get(self.rating, 'Unknown')
+
+
+class ComplaintClosing(models.Model):
+    """
+    Model to track complaint closing details and user satisfaction.
+    """
+    complaint = models.OneToOneField(
+        Complaint, 
+        on_delete=models.CASCADE, 
+        related_name='closing_details',
+        help_text="The complaint being closed"
+    )
+    closed_by_staff = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE,
+        related_name='staff_closings',
+        help_text="Staff member who closed the complaint"
+    )
+    staff_closing_remark = models.TextField(
+        help_text="Staff remark when closing the complaint"
+    )
+    staff_closed_at = models.DateTimeField(auto_now_add=True)
+    
+    # User response after staff closes
+    user_satisfied = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="True if user is satisfied, False if not satisfied, None if no response yet"
+    )
+    user_closing_remark = models.TextField(
+        blank=True,
+        help_text="User's remark if not satisfied"
+    )
+    user_closed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When user finally closed the complaint"
+    )
+
+    class Meta:
+        verbose_name = 'Complaint Closing'
+        verbose_name_plural = 'Complaint Closings'
+
+    def __str__(self):
+        return f"Closing for Complaint #{self.complaint.id}"
+
+
 

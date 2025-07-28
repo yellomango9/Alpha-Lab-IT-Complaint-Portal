@@ -38,13 +38,9 @@ class ComplaintForm(forms.ModelForm):
     
     class Meta:
         model = Complaint
-        fields = ['type', 'title', 'description', 'urgency']
+        fields = ['type', 'description', 'urgency']
         widgets = {
             'type': forms.Select(attrs={'class': 'form-select'}),
-            'title': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Brief description of your IT issue'
-            }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control', 
                 'rows': 5,
@@ -53,7 +49,6 @@ class ComplaintForm(forms.ModelForm):
             'urgency': forms.Select(attrs={'class': 'form-select'}),
         }
         help_texts = {
-            'title': 'Brief, descriptive title of your issue',
             'description': 'Provide detailed information about the problem',
             'urgency': 'How urgent is this issue?',
         }
@@ -65,13 +60,11 @@ class ComplaintForm(forms.ModelForm):
         
         # Make certain fields required
         self.fields['type'].required = True
-        self.fields['title'].required = True
         self.fields['description'].required = True
         
         # Set better labels for user-friendly experience
         self.fields['type'].label = 'What type of IT issue is this?'
-        self.fields['title'].label = 'Issue Summary'
-        self.fields['description'].label = 'Detailed Description'
+        self.fields['description'].label = 'Describe Your IT Issue'
         self.fields['urgency'].label = 'Priority Level'
     
     def clean_attachments(self):

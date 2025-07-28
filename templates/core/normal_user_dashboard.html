@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Complaint Portal - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+        .main-container {
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: none;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 1.5rem;
+            margin: 0;
+        }
+
+        .section-header h4 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .section-body {
+            padding: 2rem;
+        }
+
+        .form-floating label {
+            color: #6c757d;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
+            border: none;
+            padding: 12px 30px;
+            font-weight: 600;
+            border-radius: 8px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .complaint-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .complaint-item:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .status-badge {
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .urgency-low { background-color: #d4edda; color: #155724; }
+        .urgency-medium { background-color: #fff3cd; color: #856404; }
+        .urgency-high { background-color: #f8d7da; color: #721c24; }
+        .urgency-critical { background-color: #721c24; color: white; }
+
+        .faq-item {
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .faq-question {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            margin: 0;
+            cursor: pointer;
+            border: none;
+            width: 100%;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .faq-question:hover {
+            background: #e9ecef;
+        }
+
+        .faq-answer {
+            padding: 1.5rem;
+            border-top: 1px solid #e9ecef;
+            background: white;
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .nav-pills .nav-link {
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            margin-right: 0.5rem;
+            font-weight: 600;
+        }
+
+        .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        .file-upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary-color);
+            background: #f8f9fa;
+        }
+
+        .file-upload-area.dragover {
+            border-color: var(--primary-color);
+            background: #e7f3ff;
+        }
+
+        #complaintModal .modal-content {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        #complaintModal .modal-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+
+        .welcome-message {
+            background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-left: 4px solid var(--success-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-headset me-2"></i>
+                IT Complaint Portal
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i>
+                        {{ user_data.name }}
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'core:normal_user_logout' %}">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container main-container">
+        <!-- Welcome Message -->
+        <div class="welcome-message">
+            <h5 class="mb-1">
+                <i class="fas fa-hand-wave me-2"></i>
+                Welcome, {{ user_data.name }}!
+            </h5>
+            <p class="mb-0 text-muted">Submit IT complaints, track their status, and find answers to common questions.</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-pills justify-content-center mb-4" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="submit-tab" data-bs-toggle="pill" data-bs-target="#submit-complaint" type="button" role="tab">
+                    <i class="fas fa-plus-circle me-2"></i>Submit Complaint
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="status-tab" data-bs-toggle="pill" data-bs-target="#complaint-status" type="button" role="tab">
+                    <i class="fas fa-list-alt me-2"></i>My Complaints
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="faq-tab" data-bs-toggle="pill" data-bs-target="#faq-section" type="button" role="tab">
+                    <i class="fas fa-question-circle me-2"></i>FAQ
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabContent">
+            <!-- Submit Complaint Tab -->
+            <div class="tab-pane fade show active" id="submit-complaint" role="tabpanel">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h4><i class="fas fa-exclamation-triangle me-2"></i>Submit New IT Complaint</h4>
+                    </div>
+                    <div class="section-body">
+                        <form id="complaintForm" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="id_type" name="type" required>
+                                    <option value="">Select complaint type...</option>
+                                    {% for type in complaint_types %}
+                                        <option value="{{ type.id }}">{{ type.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label for="id_type">What type of IT issue is this?</label>
+                            </div>
+
+                            <div class="form-floating mb-3">
+                                <textarea class="form-control" id="id_description" name="description" style="height: 150px" placeholder="Please provide detailed information about your IT issue..." required></textarea>
+                                <label for="id_description">Describe Your IT Issue</label>
+                            </div>
+                            
+                            <!-- Hidden priority field with default value -->
+                            <input type="hidden" id="id_urgency" name="urgency" value="low">
+
+                            <div class="file-upload-area" onclick="document.getElementById('id_attachments').click()">
+                                <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                                <p class="mb-1"><strong>Click to upload files</strong> or drag and drop</p>
+                                <p class="text-muted small mb-0">Supported: PDF, DOC, images (Max 10MB each)</p>
+                                <input type="file" id="id_attachments" name="attachments" multiple accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif" style="display: none;">
+                            </div>
+                            <div id="selectedFiles" class="mb-3"></div>
+
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-success btn-submit">
+                                    <i class="fas fa-paper-plane me-2"></i>Submit Complaint
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Complaints Tab -->
+            <div class="tab-pane fade" id="complaint-status" role="tabpanel">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h4><i class="fas fa-clipboard-list me-2"></i>My Complaints Status</h4>
+                    </div>
+                    <div class="section-body">
+                        <div id="complaintsContainer">
+                            <div class="loading-spinner">
+                                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                                <p class="mt-2">Loading your complaints...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAQ Tab -->
+            <div class="tab-pane fade" id="faq-section" role="tabpanel">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h4><i class="fas fa-question-circle me-2"></i>Frequently Asked Questions</h4>
+                    </div>
+                    <div class="section-body">
+                        {% for category in faq_categories %}
+                            {% if category.faqs.count > 0 %}
+                                <h5 class="mb-3 text-primary">
+                                    <i class="fas fa-folder me-2"></i>{{ category.name }}
+                                </h5>
+                                {% for faq in category.faqs.all %}
+                                    <div class="faq-item">
+                                        <button class="faq-question" type="button" data-bs-toggle="collapse" data-bs-target="#faq{{ faq.id }}">
+                                            <i class="fas fa-chevron-right me-2"></i>
+                                            {{ faq.question }}
+                                        </button>
+                                        <div class="collapse faq-answer" id="faq{{ faq.id }}">
+                                            {{ faq.answer|linebreaks }}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                                {% if not forloop.last %}<hr class="my-4">{% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Complaint Detail Modal -->
+    <div class="modal fade" id="complaintModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-file-alt me-2"></i>Complaint Details
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="complaintModalBody">
+                    <!-- Complaint details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let selectedFiles = [];
+
+        // Document ready
+        document.addEventListener('DOMContentLoaded', function() {
+            setupFileUpload();
+            setupFormSubmission();
+            setupTabHandlers();
+        });
+
+        // File upload functionality
+        function setupFileUpload() {
+            const fileInput = document.getElementById('id_attachments');
+            const uploadArea = document.querySelector('.file-upload-area');
+            const selectedFilesDiv = document.getElementById('selectedFiles');
+
+            fileInput.addEventListener('change', handleFileSelection);
+            
+            // Drag and drop functionality
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = Array.from(e.dataTransfer.files);
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelection();
+            });
+        }
+
+        function handleFileSelection() {
+            const fileInput = document.getElementById('id_attachments');
+            const selectedFilesDiv = document.getElementById('selectedFiles');
+            
+            selectedFiles = Array.from(fileInput.files);
+            
+            if (selectedFiles.length > 0) {
+                let html = '<div class="alert alert-info"><strong>Selected Files:</strong><ul class="mb-0 mt-2">';
+                selectedFiles.forEach((file, index) => {
+                    html += `<li>${file.name} (${formatFileSize(file.size)})</li>`;
+                });
+                html += '</ul></div>';
+                selectedFilesDiv.innerHTML = html;
+            } else {
+                selectedFilesDiv.innerHTML = '';
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Form submission
+        function setupFormSubmission() {
+            const form = document.getElementById('complaintForm');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Basic client-side validation
+                const type = document.getElementById('id_type').value;
+                const description = document.getElementById('id_description').value;
+                
+                if (!type || !description.trim()) {
+                    showAlert('warning', 'Please fill in all required fields (Complaint Type and Description).');
+                    return;
+                }
+                
+                const formData = new FormData(form);
+                const submitBtn = form.querySelector('button[type="submit"]');
+                
+                // Disable submit button
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+                
+                fetch('{% url "core:submit_complaint" %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', data.message);
+                        form.reset();
+                        selectedFiles = [];
+                        document.getElementById('selectedFiles').innerHTML = '';
+                        
+                        // Switch to complaints tab to show the new complaint
+                        setTimeout(() => {
+                            document.getElementById('status-tab').click();
+                        }, 2000);
+                    } else {
+                        if (data.errors) {
+                            let errorMsg = 'Please fix the following errors:<br>';
+                            for (const [field, errors] of Object.entries(data.errors)) {
+                                const fieldName = field === 'type' ? 'Complaint Type' : 
+                                                field === 'title' ? 'Issue Summary' :
+                                                field === 'description' ? 'Description' :
+                                                field === 'attachments' ? 'File Attachments' : field;
+                                errorMsg += `• ${fieldName}: ${errors.join(', ')}<br>`;
+                            }
+                            showAlert('danger', errorMsg);
+                        } else {
+                            showAlert('danger', data.error || 'An error occurred while submitting your complaint.');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('danger', 'Network error. Please check your connection and try again.');
+                })
+                .finally(() => {
+                    // Re-enable submit button
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Complaint';
+                });
+            });
+        }
+
+        // Tab handlers
+        function setupTabHandlers() {
+            document.getElementById('status-tab').addEventListener('click', loadComplaints);
+        }
+
+        // Load user complaints
+        function loadComplaints() {
+            const container = document.getElementById('complaintsContainer');
+            container.innerHTML = `
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p class="mt-2">Loading your complaints...</p>
+                </div>
+            `;
+
+            fetch('{% url "core:get_user_complaints" %}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayComplaints(data.complaints);
+                    } else {
+                        container.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Error loading complaints: ${data.error}
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    container.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Network error loading complaints.
+                        </div>
+                    `;
+                });
+        }
+
+        // Display complaints
+        function displayComplaints(complaints) {
+            const container = document.getElementById('complaintsContainer');
+            
+            if (complaints.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No complaints submitted yet</h5>
+                        <p class="text-muted">When you submit a complaint, it will appear here.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            complaints.forEach(complaint => {
+                const urgencyClass = `urgency-${complaint.urgency.toLowerCase()}`;
+                const statusColor = complaint.is_resolved ? 'success' : 'primary';
+                
+                html += `
+                    <div class="complaint-item" onclick="showComplaintDetail(${complaint.id})">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="mb-1">#${complaint.id} - ${complaint.title}</h6>
+                            <span class="badge bg-${statusColor}">${complaint.status}</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            <span class="badge ${urgencyClass}">${complaint.urgency}</span>
+                            <span class="badge bg-secondary">${complaint.type}</span>
+                            <small class="text-muted ms-auto">${complaint.created_at}</small>
+                        </div>
+                        <div class="text-muted small">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            ${complaint.days_open} days ${complaint.is_resolved ? 'to resolve' : 'open'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Show complaint detail
+        function showComplaintDetail(complaintId) {
+            fetch(`{% url "core:get_complaint_detail" complaint_id=0 %}`.replace('0', complaintId))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayComplaintDetail(data.complaint);
+                        new bootstrap.Modal(document.getElementById('complaintModal')).show();
+                    } else {
+                        showAlert('danger', 'Error loading complaint details: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('danger', 'Network error loading complaint details.');
+                });
+        }
+
+        // Display complaint detail in modal
+        function displayComplaintDetail(complaint) {
+            const urgencyClass = `urgency-${complaint.urgency.toLowerCase()}`;
+            const statusColor = complaint.is_resolved ? 'success' : 'primary';
+            
+            let attachmentsHtml = '';
+            if (complaint.attachments.length > 0) {
+                attachmentsHtml = `
+                    <div class="mt-3">
+                        <h6><i class="fas fa-paperclip me-2"></i>Attachments</h6>
+                        <ul class="list-unstyled">
+                `;
+                complaint.attachments.forEach(attachment => {
+                    attachmentsHtml += `
+                        <li class="mb-1">
+                            <i class="fas fa-file me-2"></i>
+                            ${attachment.filename} (${attachment.size})
+                            <small class="text-muted">- uploaded ${attachment.uploaded_at}</small>
+                        </li>
+                    `;
+                });
+                attachmentsHtml += '</ul></div>';
+            }
+
+            // Add staff closing remark if available
+            let staffRemarkHtml = '';
+            if (complaint.staff_closing_remark) {
+                staffRemarkHtml = `
+                    <div class="mb-3">
+                        <h6><i class="fas fa-user-tie me-2"></i>Staff Resolution</h6>
+                        <div class="p-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded">
+                            <strong>Resolved by:</strong> ${complaint.closed_by_staff}<br>
+                            <strong>Date:</strong> ${complaint.staff_closed_at}<br>
+                            <div class="mt-2">${complaint.staff_closing_remark.replace(/\n/g, '<br>')}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Add user response section if complaint is resolved by staff but not closed by user
+            let userResponseHtml = '';
+            if (complaint.is_resolved && complaint.staff_closing_remark && complaint.user_satisfied === null) {
+                userResponseHtml = `
+                    <div class="mt-4 p-3 bg-warning bg-opacity-10 border border-warning border-opacity-25 rounded">
+                        <h6><i class="fas fa-question-circle me-2"></i>Please Review the Resolution</h6>
+                        <p>Our technical team has resolved your complaint. Are you satisfied with the resolution?</p>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success btn-sm" onclick="handleUserResponse(${complaint.id}, 'satisfied')">
+                                <i class="fas fa-thumbs-up me-1"></i>Yes, I'm Satisfied
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick="showNotSatisfiedForm(${complaint.id})">
+                                <i class="fas fa-thumbs-down me-1"></i>No, I'm Not Satisfied
+                            </button>
+                        </div>
+                        <div id="notSatisfiedForm${complaint.id}" class="mt-3" style="display: none;">
+                            <textarea class="form-control mb-2" id="userRemark${complaint.id}" rows="3" 
+                                placeholder="Please tell us why you're not satisfied..."></textarea>
+                            <button class="btn btn-warning btn-sm" onclick="handleUserResponse(${complaint.id}, 'not_satisfied')">
+                                Submit Feedback
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('complaintModalBody').innerHTML = `
+                <div class="row">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5>#${complaint.id}</h5>
+                            <span class="badge bg-${statusColor} fs-6">${complaint.status}</span>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <strong>Type:</strong> ${complaint.type}<br>
+                                <strong>Priority:</strong> <span class="badge ${urgencyClass}">${complaint.urgency}</span><br>
+                                <strong>Assigned to:</strong> ${complaint.assigned_to}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Created:</strong> ${complaint.created_at}<br>
+                                <strong>Last Updated:</strong> ${complaint.updated_at}<br>
+                                <strong>Days Open:</strong> ${complaint.days_open}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6><i class="fas fa-align-left me-2"></i>Description</h6>
+                            <div class="p-3" style="background: #f8f9fa; border-radius: 8px;">
+                                ${complaint.description.replace(/\n/g, '<br>')}
+                            </div>
+                        </div>
+
+                        ${staffRemarkHtml}
+                        ${attachmentsHtml}
+                        ${userResponseHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Handle user response to staff resolution
+        function handleUserResponse(complaintId, action) {
+            const formData = new FormData();
+            formData.append('action', action);
+            
+            if (action === 'not_satisfied') {
+                const remark = document.getElementById(`userRemark${complaintId}`).value.trim();
+                if (!remark) {
+                    showAlert('warning', 'Please provide a reason for not being satisfied.');
+                    return;
+                }
+                formData.append('user_remark', remark);
+            }
+            
+            fetch(`{% url "core:handle_complaint_response" complaint_id=0 %}`.replace('0', complaintId), {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.action === 'feedback') {
+                        showFeedbackForm(complaintId);
+                    } else {
+                        showAlert('success', data.message);
+                        document.getElementById('complaintModal').querySelector('.btn-close').click();
+                        loadComplaints(); // Reload complaints list
+                    }
+                } else {
+                    showAlert('danger', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Network error occurred.');
+            });
+        }
+
+        // Show feedback form
+        function showFeedbackForm(complaintId) {
+            const modalBody = document.getElementById('complaintModalBody');
+            modalBody.innerHTML = `
+                <div class="text-center">
+                    <h5><i class="fas fa-star me-2"></i>Please Rate Your Experience</h5>
+                    <p class="text-muted">Help us improve our IT support services</p>
+                    
+                    <div class="mb-4">
+                        <div class="rating-stars mb-2">
+                            ${[1,2,3,4,5].map(i => `
+                                <i class="fas fa-star rating-star" data-rating="${i}" style="font-size: 2rem; color: #ddd; cursor: pointer; margin: 0 5px;"></i>
+                            `).join('')}
+                        </div>
+                        <div class="rating-text">Click to rate</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <textarea class="form-control" id="feedbackText" rows="4" 
+                            placeholder="Any additional feedback? (optional)"></textarea>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="submitFeedback(${complaintId})" disabled id="submitFeedbackBtn">
+                        <i class="fas fa-paper-plane me-2"></i>Submit Feedback
+                    </button>
+                </div>
+            `;
+            
+            setupRatingStars();
+        }
+
+        // Setup rating stars functionality
+        function setupRatingStars() {
+            let selectedRating = 0;
+            const stars = document.querySelectorAll('.rating-star');
+            const ratingText = document.querySelector('.rating-text');
+            const submitBtn = document.getElementById('submitFeedbackBtn');
+            
+            const ratingTexts = {
+                1: 'Very Unhappy 😟',
+                2: 'Unhappy 😕', 
+                3: 'Neutral 😐',
+                4: 'Happy 😊',
+                5: 'Very Happy 😃'
+            };
+            
+            stars.forEach(star => {
+                star.addEventListener('mouseover', function() {
+                    const rating = parseInt(this.dataset.rating);
+                    updateStars(rating, false);
+                });
+                
+                star.addEventListener('click', function() {
+                    selectedRating = parseInt(this.dataset.rating);
+                    updateStars(selectedRating, true);
+                    ratingText.textContent = ratingTexts[selectedRating];
+                    submitBtn.disabled = false;
+                });
+            });
+            
+            document.querySelector('.rating-stars').addEventListener('mouseleave', function() {
+                updateStars(selectedRating, true);
+            });
+            
+            function updateStars(rating, permanent) {
+                stars.forEach((star, index) => {
+                    if (index < rating) {
+                        star.style.color = permanent ? '#ffc107' : '#ffeb3b';
+                    } else {
+                        star.style.color = '#ddd';
+                    }
+                });
+            }
+            
+            window.selectedRating = selectedRating;
+        }
+
+        // Submit feedback
+        function submitFeedback(complaintId) {
+            const rating = window.selectedRating;
+            const feedbackText = document.getElementById('feedbackText').value.trim();
+            
+            if (!rating) {
+                showAlert('warning', 'Please provide a rating.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'submit_feedback');
+            formData.append('rating', rating);
+            formData.append('feedback_text', feedbackText);
+            
+            fetch(`{% url "core:handle_complaint_response" complaint_id=0 %}`.replace('0', complaintId), {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    document.getElementById('complaintModal').querySelector('.btn-close').click();
+                    loadComplaints(); // Reload complaints list
+                } else {
+                    showAlert('danger', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Network error occurred.');
+            });
+        }
+
+        // Show not satisfied form
+        function showNotSatisfiedForm(complaintId) {
+            document.getElementById(`notSatisfiedForm${complaintId}`).style.display = 'block';
+        }
+
+        // Show alert
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            
+            const iconMap = {
+                'success': 'check-circle',
+                'danger': 'exclamation-triangle',
+                'warning': 'exclamation-circle',
+                'info': 'info-circle'
+            };
+            
+            alertDiv.innerHTML = `
+                <i class="fas fa-${iconMap[type] || 'info-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.querySelector('.main-container').insertBefore(alertDiv, document.querySelector('.main-container').firstChild);
+            
+            // Auto-hide after appropriate time based on type
+            const timeout = type === 'success' ? 4000 : type === 'danger' ? 8000 : 6000;
+            setTimeout(() => {
+                if (alertDiv && alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, timeout);
+        }
+
+        // FAQ accordion icons
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('faq-question')) {
+                const icon = e.target.querySelector('i');
+                const isCollapsing = e.target.getAttribute('aria-expanded') === 'true';
+                icon.className = isCollapsing ? 'fas fa-chevron-right me-2' : 'fas fa-chevron-down me-2';
+            }
+        });
+    </script>
+</body>
+</html>
