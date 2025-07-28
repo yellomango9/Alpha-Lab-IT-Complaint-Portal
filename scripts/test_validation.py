@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Test Validation Script for Alpha Lab IT Complaint Portal
+Test Validation Script for AMC Complaint Portal
 Performs automated testing of critical functionality
 """
 
@@ -309,7 +309,7 @@ class TestValidator:
                 
     def run_validation(self):
         """Run complete validation suite."""
-        print("🧪 ALPHA LAB IT COMPLAINT PORTAL - AUTOMATED TEST VALIDATION")
+        print("🧪 AMC COMPLAINT PORTAL - AUTOMATED TEST VALIDATION")
         print("=" * 70)
         
         self.test_authentication_pages()

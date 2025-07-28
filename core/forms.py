@@ -85,7 +85,7 @@ class UserRegistrationForm(forms.ModelForm):
         max_length=100,
         widget=forms.TextInput(attrs={'class': 'form-control'}),
         required=False,
-        help_text="Unique ID from the main Alpha Labs portal for SSO"
+        help_text="Unique ID from the main AMC portal for SSO"
     )
     
     class Meta:
@@ -149,7 +149,7 @@ class NormalUserLoginForm(forms.Form):
             'placeholder': 'Enter your portal ID',
             'required': True
         }),
-        help_text="Your unique ID from the main Alpha Labs portal"
+        help_text="Your unique ID from the main AMC portal"
     )
     
     department = forms.ModelChoiceField(

@@ -1,4 +1,4 @@
-# Alpha Lab IT Complaint Portal - Improvements Summary
+# AMC Complaint Portal - Improvements Summary
 
 ## Overview
 This document summarizes all the improvements implemented as per the requirements.
@@ -161,4 +161,4 @@ All improvements have been implemented and tested successfully. The system now p
 5. **Robust Error Handling**: Network error fixes and better user feedback
 6. **Proper Access Control**: Role-based restrictions and group management
 
-The Alpha Lab IT Complaint Portal is now feature-complete and ready for deployment with all requested improvements implemented.
+The AMC Complaint Portal is now feature-complete and ready for deployment with all requested improvements implemented.

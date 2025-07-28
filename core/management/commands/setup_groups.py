@@ -1,5 +1,5 @@
 """
-Management command to set up required user groups for the Alpha Lab IT Portal.
+Management command to set up required user groups for the AMC Portal.
 """
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group, User
@@ -7,7 +7,7 @@ from django.db import transaction
 
 
 class Command(BaseCommand):
-    help = 'Set up required user groups for the Alpha Lab IT Portal'
+    help = 'Set up required user groups for the AMC Portal'
 
     def add_arguments(self, parser):
         parser.add_argument(

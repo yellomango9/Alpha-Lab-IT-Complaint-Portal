@@ -1,4 +1,4 @@
-# 📚 Alpha Lab IT Complaint Portal - Documentation Hub
+# 📚 AMC Complaint Portal - Documentation Hub
 
 **Project Status**: ✅ Production Ready  
 **Last Updated**: December 2024  
@@ -256,6 +256,6 @@ python manage.py runserver
 
 ---
 
-**🚀 The Alpha Lab IT Complaint Portal is ready for production deployment and comprehensive testing!**
+**🚀 The AMC Complaint Portal is ready for production deployment and comprehensive testing!**
 
 *All documentation is current as of December 2024. For questions or issues, refer to the specific guide sections above.*

@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='userprofile',
             name='main_portal_id',
-            field=models.CharField(blank=True, db_index=True, help_text='Unique ID from the main Alpha Labs portal for SSO', max_length=100, null=True),
+            field=models.CharField(blank=True, db_index=True, help_text='Unique ID from the main AMC portal for SSO', max_length=100, null=True),
         ),
     ]

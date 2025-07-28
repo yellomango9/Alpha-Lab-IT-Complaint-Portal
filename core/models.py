@@ -6,7 +6,7 @@ from django.dispatch import receiver
 
 class Department(models.Model):
     """
-    Model for organizational departments within Alpha Labs.
+    Model for organizational departments within AMC.
     
     Represents different departments such as IT, HR, Finance, etc.
     Used to categorize users and track complaint distribution across departments.
@@ -42,9 +42,9 @@ class UserProfile(models.Model):
     """
     Extended user profile model that serves as a lean extension of Django's built-in User model.
     
-    This model stores additional information about users that is specific to the Alpha Lab
-    IT Complaint Portal, including department affiliation, contact information, and
-    integration with the main Alpha Labs portal for SSO functionality.
+    This model stores additional information about users that is specific to the AMC
+    Complaint Portal, including department affiliation, contact information, and
+    integration with the main AMC portal for SSO functionality.
     """
     user = models.OneToOneField(
         User, 
@@ -73,7 +73,7 @@ class UserProfile(models.Model):
         null=True, 
         blank=True, 
         db_index=True,
-        help_text="Unique ID from the main Alpha Labs portal for SSO"
+        help_text="Unique ID from the main AMC portal for SSO"
     )
     
     # Preferences

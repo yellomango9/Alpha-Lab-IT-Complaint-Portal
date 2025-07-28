@@ -1,5 +1,5 @@
 /**
- * Alpha Lab IT Complaint Portal - Main JavaScript
+ * AMC Complaint Portal - Main JavaScript
  * Provides enhanced functionality for the complaint portal
  */
 

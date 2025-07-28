@@ -1,4 +1,4 @@
-# Alpha Lab IT Complaint Portal - Comprehensive Technical Report
+# AMC Complaint Portal - Comprehensive Technical Report
 
 **Generated Date**: December 2024  
 **Project Status**: Production Ready  
@@ -9,7 +9,7 @@
 
 ## 📋 Executive Summary
 
-The Alpha Lab IT Complaint Portal is a full-featured enterprise web application built with Django framework, designed to streamline IT support operations for Alpha Lab organization. The system provides comprehensive complaint management, role-based access control, real-time analytics, and automated issue tracking capabilities.
+The AMC Complaint Portal is a full-featured enterprise web application built with Django framework, designed to streamline support operations for AMC organization. The system provides comprehensive complaint management, role-based access control, real-time analytics, and automated issue tracking capabilities.
 
 ### Key Achievements
 - ✅ **Complete Implementation**: All requested features implemented and tested
@@ -418,7 +418,7 @@ function pollForUpdates() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Alpha Lab IT Portal{% endblock %}</title>
+    <title>{% block title %}AMC Portal{% endblock %}</title>
     {% load static %}
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/custom.css' %}" rel="stylesheet">
@@ -646,7 +646,7 @@ Overall System Health: 95/100 ✅ EXCELLENT
 
 ## 📝 Conclusion
 
-The Alpha Lab IT Complaint Portal represents a comprehensive, production-ready enterprise solution that successfully addresses all organizational requirements for IT support management. With its robust architecture, advanced analytics capabilities, and user-centric design, the system is positioned to significantly improve IT support operations while providing valuable insights for continuous improvement.
+The AMC Complaint Portal represents a comprehensive, production-ready enterprise solution that successfully addresses all organizational requirements for support management. With its robust architecture, advanced analytics capabilities, and user-centric design, the system is positioned to significantly improve IT support operations while providing valuable insights for continuous improvement.
 
 **Final Recommendation**: ✅ **APPROVED FOR PRODUCTION DEPLOYMENT**
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Script to reset and recreate migrations for the Alpha Lab IT Complaint Portal.
+Script to reset and recreate migrations for the AMC Complaint Portal.
 This should be run when there are migration conflicts or when setting up fresh.
 """
 
@@ -24,7 +24,7 @@ from django.conf import settings
 def reset_migrations():
     """Reset all migrations and recreate them."""
     
-    print("🔄 Resetting migrations for Alpha Lab IT Complaint Portal...")
+    print("🔄 Resetting migrations for AMC Complaint Portal...")
     
     # Apps to reset
     apps = ['core', 'complaints', 'faq', 'feedback']

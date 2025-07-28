@@ -1,6 +1,6 @@
-# Alpha Lab IT Complaint Portal
+# AMC Complaint Portal
 
-A full-stack web application built with Django and MySQL for managing IT-related complaints within an organization. The system allows users to submit complaints, IT staff to resolve them, and administrators to monitor and report on system usage.
+A full-stack web application built with Django and MySQL for managing complaints within an organization. The system allows users to submit complaints, staff to resolve them, and administrators to monitor and report on system usage.
 
 ---
 

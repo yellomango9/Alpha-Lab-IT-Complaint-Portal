@@ -213,6 +213,6 @@ admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
 
 # Customize admin site headers
-admin.site.site_header = 'Alpha Lab IT Complaint Portal Admin'
-admin.site.site_title = 'Alpha Lab IT Portal'
+admin.site.site_header = 'AMC Complaint Portal Admin'
+admin.site.site_title = 'AMC Portal'
 admin.site.index_title = 'Administration'

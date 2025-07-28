@@ -1,5 +1,5 @@
 """
-Admin-specific views for the Alpha Lab IT Complaint Portal.
+Admin-specific views for the AMC Complaint Portal.
 """
 from datetime import datetime, timedelta
 from django.shortcuts import render, redirect

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-System Health Check Script for Alpha Lab IT Complaint Portal
+System Health Check Script for AMC Complaint Portal
 Checks for common issues and provides fixes
 """
 
@@ -265,7 +265,7 @@ class SystemHealthChecker:
         
     def run_health_check(self):
         """Run complete system health check."""
-        print("🏥 ALPHA LAB IT COMPLAINT PORTAL - SYSTEM HEALTH CHECK")
+        print("🏥 AMC COMPLAINT PORTAL - SYSTEM HEALTH CHECK")
         print("=" * 60)
         
         self.check_database_integrity()

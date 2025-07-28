@@ -188,7 +188,7 @@ class Command(BaseCommand):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alpha Lab IT Complaint Portal - Report</title>
+    <title>AMC Complaint Portal - Report</title>
     <style>
         body {{ font-family: Arial, sans-serif; margin: 20px; }}
         .header {{ background: #007bff; color: white; padding: 20px; border-radius: 5px; }}
@@ -203,7 +203,7 @@ class Command(BaseCommand):
 </head>
 <body>
     <div class="header">
-        <h1>Alpha Lab IT Complaint Portal - Report</h1>
+        <h1>AMC Complaint Portal - Report</h1>
         <p>Generated on: {stats['generated_at']}</p>
         <p>Period: {stats['period']['start_date']} to {stats['period']['end_date']} ({stats['period']['days']} days)</p>
     </div>

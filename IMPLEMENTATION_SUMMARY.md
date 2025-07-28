@@ -1,4 +1,4 @@
-# 🎉 Alpha Lab IT Complaint Portal - Implementation Summary
+# 🎉 AMC Complaint Portal - Implementation Summary
 
 ## ✅ All Issues Fixed and Features Implemented
 
@@ -187,7 +187,7 @@
 
 ## 🎯 Ready for Use
 
-The Alpha Lab IT Complaint Portal is now **fully functional** with all requested features implemented and tested. The system handles the complete complaint lifecycle from submission to closure with user feedback, providing excellent user experience for all roles.
+The AMC Complaint Portal is now **fully functional** with all requested features implemented and tested. The system handles the complete complaint lifecycle from submission to closure with user feedback, providing excellent user experience for all roles.
 
 **Next Steps:**
 1. Run manual testing using the provided guide

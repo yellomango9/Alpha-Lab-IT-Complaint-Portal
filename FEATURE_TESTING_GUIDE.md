@@ -1,4 +1,4 @@
-# 🧪 Alpha Lab IT Complaint Portal - Feature Testing Guide
+# 🧪 AMC Complaint Portal - Feature Testing Guide
 
 This guide covers manual testing of all the new features implemented based on your requirements.
 

@@ -1,8 +1,8 @@
-# 🎉 Alpha Lab IT Complaint Portal - SYSTEM READY
+# 🎉 AMC Complaint Portal - SYSTEM READY
 
 ## ✅ Implementation Complete
 
-The IT Complaint Portal has been successfully implemented with all requested features:
+The Complaint Portal has been successfully implemented with all requested features:
 
 ### 🔧 Fixed Issues Addressed:
 

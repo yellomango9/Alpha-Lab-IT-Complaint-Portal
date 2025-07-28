@@ -1,4 +1,4 @@
-# 🧪 Alpha Lab IT Complaint Portal - Manual Testing Guide
+# 🧪 AMC Complaint Portal - Manual Testing Guide
 
 **Last Updated**: December 2024  
 **Status**: Production Ready  
@@ -437,4 +437,4 @@ If you encounter any issues during testing:
 
 ---
 
-*This testing guide covers all implemented features of the Alpha Lab IT Complaint Portal. Follow the test scenarios systematically to verify full system functionality.*
+*This testing guide covers all implemented features of the AMC Complaint Portal. Follow the test scenarios systematically to verify full system functionality.*
